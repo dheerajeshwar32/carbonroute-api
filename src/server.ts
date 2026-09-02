@@ -57,8 +57,7 @@ app.post('/api/v1/inference', async (req: Request, res: Response): Promise<void>
         }
 
         // --- 3. CACHE MISS: PROCEED TO CLOUD ROUTING ---
-        const liveRegions = telemetryCache.get<CloudRegion[]>("live_regions");
-        if (!liveRegions) {
+const liveRegions = telemetryCache.get("live_regions") as CloudRegion[];        if (!liveRegions) {
             res.status(503).json({ error: "Telemetry cache warming up. Try again in a moment." });
             return;
         }
