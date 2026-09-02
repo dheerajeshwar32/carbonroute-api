@@ -1,42 +1,45 @@
-// src/telemetry.ts
-import NodeCache from 'node-cache';
-import { CloudRegion, MOCK_REGIONS } from './regions';
+import { MOCK_REGIONS, CloudRegion } from './regions';
 
-// Initialize cache: data expires in 60 seconds, checks for expired data every 10 seconds
-export const telemetryCache = new NodeCache({ stdTTL: 60, checkperiod: 10 });
+export const telemetryCache = new Map<string, CloudRegion[]>();
 
-// Load initial baseline data
-telemetryCache.set("live_regions", MOCK_REGIONS);
+export const startTelemetryWorker = () => {
+    updateCarbonData();
+    setInterval(updateCarbonData, 30 * 60 * 1000); // Poll every 30 minutes
+};
 
-export function startTelemetryWorker() {
-    console.log("[SYSTEM] Starting async telemetry background worker...");
+const updateCarbonData = async () => {
+    const liveRegions = [...MOCK_REGIONS];
+    const apiKey = process.env.ELECTRICITY_MAPS_API_KEY;
 
-    // Run this loop every 10 seconds
-    setInterval(() => {
-        const currentRegions = telemetryCache.get<CloudRegion[]>("live_regions") || MOCK_REGIONS;
-        
-        const updatedRegions = currentRegions.map(region => {
-            // Simulate grid fluctuations: Randomly shift carbon intensity by -30 to +30
-            const carbonShift = Math.floor(Math.random() * 61) - 30;
-            let newCarbon = region.carbonIntensity + carbonShift;
-            
-            // Ensure carbon doesn't drop below a realistic floor of 50
-            if (newCarbon < 50) newCarbon = 50;
+    if (!apiKey) {
+        console.warn("[Telemetry] ELECTRICITY_MAPS_API_KEY not found. Using fallback values.");
+        telemetryCache.set("live_regions", liveRegions);
+        return;
+    }
 
-            // Simulate spot pricing shifts: +/- 10%
-            const priceShiftMultiplier = 0.9 + (Math.random() * 0.2); 
-            const newCost = region.costPer1kTokens * priceShiftMultiplier;
+    console.log("[Telemetry] Fetching live grid data from Electricity Maps...");
 
-            return {
-                ...region,
-                carbonIntensity: Math.round(newCarbon),
-                costPer1kTokens: Number(newCost.toFixed(5))
-            };
-        });
+    for (const region of liveRegions) {
+        try {
+            const url = `https://api.electricitymaps.com/v3/carbon-intensity/latest?zone=${region.gridZone}`;
+            const response = await fetch(url, {
+                headers: { 'auth-token': apiKey }
+            });
 
-        // Save the fresh data back into the high-speed cache
-        telemetryCache.set("live_regions", updatedRegions);
-        console.log(`[TELEMETRY] Cache updated with live grid fluctuations.`);
-        
-    }, 10000); // 10,000 ms = 10 seconds
-}
+            if (response.ok) {
+                const data = await response.json();
+                if (data && typeof data.carbonIntensity === 'number') {
+                    region.carbonIntensity = data.carbonIntensity;
+                    console.log(`[Telemetry] ${region.location} (${region.gridZone}) -> ${data.carbonIntensity} gCO2/kWh`);
+                }
+            } else {
+                console.warn(`[Telemetry] HTTP ${response.status} for ${region.location}`);
+            }
+        } catch (error) {
+            console.error(`[Telemetry] Failed to fetch data for ${region.location}:`, error);
+        }
+    }
+
+    telemetryCache.set("live_regions", liveRegions);
+    console.log("[Telemetry] Live grid update cycle completed.");
+};
