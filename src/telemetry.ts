@@ -4,7 +4,8 @@ export const telemetryCache = new Map<string, CloudRegion[]>();
 
 export const startTelemetryWorker = () => {
     updateCarbonData();
-    setInterval(updateCarbonData, 30 * 60 * 1000); // Poll every 30 minutes
+    // Poll every 30 minutes (or change to a lower number like 10 * 1000 for a rapid 10-second demo)
+    setInterval(updateCarbonData, 30 * 60 * 1000); 
 };
 
 const updateCarbonData = async () => {
@@ -12,8 +13,22 @@ const updateCarbonData = async () => {
     const apiKey = process.env.ELECTRICITY_MAPS_API_KEY;
 
     if (!apiKey) {
-        console.warn("[Telemetry] ELECTRICITY_MAPS_API_KEY not found. Using fallback values.");
-        telemetryCache.set("live_regions", liveRegions);
+        console.warn("[Telemetry] ELECTRICITY_MAPS_API_KEY not found. Simulating live grid volatility.");
+        
+        const dynamicMockRegions = liveRegions.map(region => {
+            // Introduce a +/- 30% random variance to simulate real grid carbon fluctuations
+            const carbonVariance = 0.7 + (Math.random() * 0.6); 
+            // Introduce a +/- 15% random variance for network latency
+            const latencyVariance = 0.85 + (Math.random() * 0.3);
+
+            return {
+                ...region,
+                carbonIntensity: Math.max(5, Math.floor(region.carbonIntensity * carbonVariance)),
+                latencyMs: Math.max(10, Math.floor(region.latencyMs * latencyVariance))
+            };
+        });
+
+        telemetryCache.set("live_regions", dynamicMockRegions);
         return;
     }
 
