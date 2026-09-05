@@ -1,3 +1,15 @@
+variable "gemini_api_key" {
+  description = "Google Gemini API Key"
+  type        = string
+  sensitive   = true
+}
+
+variable "redis_url" {
+  description = "Upstash Redis Connection URL"
+  type        = string
+  sensitive   = true
+}
+
 provider "aws" {
   region = "ap-south-2"
 }
@@ -80,15 +92,15 @@ resource "aws_ecs_task_definition" "carbonroute_task" {
       hostPort      = 3000
     }]
     environment = [
-  {
-    name  = "GEMINI_API_KEY"
-    value = "<YOUR_API_KEY_HERE>"
-  },
-  {
-    name  = "REDIS_URL"
-    value = "rediss://default:gQAAAAAAA2pMAAIgcDE2MjA1NzcwMDg1YmE0NmUwOGYwZGExMWQ0ZWMwYmI2MQ@glorious-gull-223820.upstash.io:6379"
-  }
-]
+      {
+        name  = "GEMINI_API_KEY"
+        value = var.gemini_api_key
+      },
+      {
+        name  = "REDIS_URL"
+        value = var.redis_url
+      }
+    ]
   }])
 }
 
