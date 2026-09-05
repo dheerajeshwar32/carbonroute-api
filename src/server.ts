@@ -10,7 +10,6 @@ import { startTelemetryWorker, telemetryCache } from './telemetry';
 dotenv.config();
 
 // --- 1. INITIALIZE REDIS CLIENT ---
-// --- 1. INITIALIZE REDIS CLIENT ---
 const redisClient = createClient({
     url: process.env.REDIS_URL
 });
@@ -18,7 +17,10 @@ redisClient.on('error', (err) => console.error('Redis Client Error', err));
 redisClient.connect().catch(console.error);
 
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: "https://carbon-route-alpha.vercel.app"
+}));
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
@@ -95,10 +97,19 @@ app.post('/api/v1/inference', async (req: Request, res: Response): Promise<void>
         });
 
     } catch (error: any) {
-        // ADD THIS LINE:
         console.error("[Route Error] Backend crashed because:", error.message || error);
+
+        if (error.message?.includes("Redis") || error.message?.includes("Upstash")) {
+            res.status(503).json({ error: "Edge cache unavailable." });
+            return;
+        }
         
-        res.status(422).json({ error: error.message });
+        if (error.message?.includes("SLA") || error.message?.includes("latency")) {
+            res.status(422).json({ error: error.message });
+            return;
+        }
+
+        res.status(500).json({ error: "Internal server error during routing or AI execution." });
     }
 });
 
