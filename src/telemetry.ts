@@ -9,7 +9,8 @@ export const startTelemetryWorker = () => {
 };
 
 const updateCarbonData = async () => {
-    const liveRegions = [...MOCK_REGIONS];
+    // Deep copy to prevent mutating the baseline mock data over time
+    const liveRegions = MOCK_REGIONS.map(region => ({ ...region }));
     const apiKey = process.env.ELECTRICITY_MAPS_API_KEY;
 
     if (!apiKey) {
@@ -35,6 +36,11 @@ const updateCarbonData = async () => {
     console.log("[Telemetry] Fetching live grid data from Electricity Maps...");
 
     for (const region of liveRegions) {
+        // 1. ADD NETWORK JITTER: Apply a +/- 15% random variance to simulate live internet traffic
+        const latencyVariance = 0.85 + (Math.random() * 0.3);
+        region.latencyMs = Math.max(10, Math.floor(region.latencyMs * latencyVariance));
+
+        // 2. FETCH LIVE CARBON
         try {
             const url = `https://api.electricitymaps.com/v3/carbon-intensity/latest?zone=${region.gridZone}`;
             const response = await fetch(url, {
