@@ -4,8 +4,8 @@ export const telemetryCache = new Map<string, CloudRegion[]>();
 
 export const startTelemetryWorker = () => {
     updateCarbonData();
-    // Poll every 30 minutes (or change to a lower number like 10 * 1000 for a rapid 10-second demo)
-    setInterval(updateCarbonData, 30 * 60 * 1000); 
+    // Poll every 10 seconds for the live portfolio demo
+    setInterval(updateCarbonData, 10 * 1000); 
 };
 
 const updateCarbonData = async () => {
