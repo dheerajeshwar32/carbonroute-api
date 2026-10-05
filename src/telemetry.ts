@@ -1,4 +1,9 @@
-import { MOCK_REGIONS, CloudRegion } from './regions';
+import { MOCK_REGIONS, CloudRegion, RegionSnapshot } from './regions';
+
+export interface TelemetrySource {
+    status(): any;
+    snapshot(): RegionSnapshot[];
+}
 
 export const telemetryCache = new Map<string, CloudRegion[]>();
 

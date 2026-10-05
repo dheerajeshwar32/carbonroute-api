@@ -7,6 +7,19 @@ export interface CloudRegion {
     carbonIntensity: number;
 }
 
+export interface RegionSnapshot {
+    id: string;
+    location: string;
+    gridZone: string;
+    latencyMs: number;
+    latencySource: 'measured' | 'fallback';
+    latencyUpdatedAt: string | null;
+    carbonIntensity: number;
+    carbonSource: 'live' | 'fallback';
+    carbonUpdatedAt: string | null;
+    costPer1kTokens: number;
+}
+
 export const MOCK_REGIONS: CloudRegion[] = [
     { id: "eu-west-1", location: "Ireland", gridZone: "IE", latencyMs: 140, costPer1kTokens: 0.0005, carbonIntensity: 190 },
     { id: "europe-north1", location: "Finland", gridZone: "FI", latencyMs: 155, costPer1kTokens: 0.0004, carbonIntensity: 45 },
