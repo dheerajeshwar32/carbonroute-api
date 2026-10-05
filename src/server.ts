@@ -1,118 +1,46 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
 import dotenv from 'dotenv';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { createClient } from 'redis';
-import { CloudRegion } from './regions'; 
-import { selectOptimalRegion, SLAConfig } from './scheduler';
-import { startTelemetryWorker, telemetryCache } from './telemetry';
-
 dotenv.config();
 
-// --- 1. INITIALIZE REDIS CLIENT ---
-const redisClient = createClient({
-    url: process.env.REDIS_URL
-});
-redisClient.on('error', (err) => console.error('Redis Client Error', err));
-redisClient.connect().catch(console.error);
+import { createApp } from './app';
+import { loadConfig } from './config';
+import { createLogger } from './logger';
+import { RedisCache } from './cache';
+import { GeminiInferenceProvider } from './inference';
+import { startTelemetryWorker, telemetryCache } from './telemetry';
+import { RegionSnapshot } from './regions';
 
-const app = express();
+async function bootstrap() {
+    const config = loadConfig(process.env);
+    const logger = createLogger(config.LOG_LEVEL, config.NODE_ENV !== 'production');
+    
+    // Telemetry mock adapter
+    startTelemetryWorker();
+    const telemetry = {
+        status: () => ({ live: true }),
+        snapshot: () => (telemetryCache.get('live_regions') as RegionSnapshot[]) || []
+    };
 
-app.use(cors({
-  origin: "https://carbon-route-alpha.vercel.app"
-}));
-app.use(express.json());
+    const cache = config.REDIS_URL 
+        ? new RedisCache(config.REDIS_URL, config.CACHE_TTL_SECONDS, config.CACHE_OP_TIMEOUT_MS, logger)
+        : new (require('./cache').MemoryCache)();
 
-const PORT = process.env.PORT || 3000;
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    const inference = new GeminiInferenceProvider({
+        mode: config.resolvedInferenceMode,
+        apiKey: config.GEMINI_API_KEY,
+        project: config.GOOGLE_CLOUD_PROJECT,
+        timeoutMs: config.INFERENCE_TIMEOUT_MS,
+        maxAttempts: config.MAX_FAILOVER_ATTEMPTS,
+        logger
+    });
 
-// Boot the background telemetry worker
-startTelemetryWorker();
+    const app = createApp({ config, telemetry, cache, inference, logger });
 
-app.post('/api/v1/inference', async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { prompt, model, sla } = req.body;
-        const startTime = Date.now();
+    app.listen(config.PORT, () => {
+        logger.info({ port: config.PORT, mode: config.resolvedInferenceMode }, 'server started');
+    });
+}
 
-        if (!prompt || !sla || typeof sla.max_latency_ms !== 'number') {
-            res.status(400).json({ error: "Invalid payload." });
-            return;
-        }
-
-        // --- 2. CHECK REDIS FOR CACHE HIT ---
-        const cachedResponse = await redisClient.get(prompt);
-        
-        if (cachedResponse) {
-            console.log(`[CACHE HIT] Serving from memory. 0 Carbon used.`);
-            res.status(200).json({
-                status: "success",
-                routed_to: "Memory Cache (Redis)",
-                location: "Local Edge",
-                telemetry: {
-                    latency_ms: Date.now() - startTime,
-                    cost_per_1k_tokens: 0,
-                    live_carbon_intensity: 0 // Compute bypassed!
-                },
-                data: cachedResponse
-            });
-            return;
-        }
-
-        // --- 3. CACHE MISS: PROCEED TO CLOUD ROUTING ---
-        const liveRegions = telemetryCache.get("live_regions") as CloudRegion[];        
-        if (!liveRegions) {
-            res.status(503).json({ error: "Telemetry cache warming up. Try again in a moment." });
-            return;
-        }
-
-        const slaConfig: SLAConfig = {
-            max_latency_ms: sla.max_latency_ms,
-            carbon_priority_weight: sla.carbon_priority_weight,
-            cost_priority_weight: sla.cost_priority_weight
-        };
-
-        const decision = selectOptimalRegion(liveRegions, slaConfig);
-        console.log(`[ROUTE MATCH] Selected: ${decision.selectedRegion.id} (Carbon: ${decision.selectedRegion.carbonIntensity} gCO2/kWh)`);
-
-        const geminiModel = genAI.getGenerativeModel({ model: model || "gemini-3.5-flash" });
-        const contextAwarePrompt = `You are an AI executing in the ${decision.selectedRegion.location} cloud region. Respond to: ${prompt}`;
-        
-        const result = await geminiModel.generateContent(contextAwarePrompt);
-        const geminiText = result.response.text();
-
-        // --- 4. SAVE CLOUD RESPONSE TO REDIS ---
-        // Store the result for 1 hour (3600 seconds)
-        await redisClient.setEx(prompt, 3600, geminiText);
-        
-        res.status(200).json({
-            status: "success",
-            routed_to: decision.selectedRegion.id,
-            location: decision.selectedRegion.location,
-            telemetry: {
-                latency_ms: decision.selectedRegion.latencyMs,
-                cost_per_1k_tokens: decision.selectedRegion.costPer1kTokens,
-                live_carbon_intensity: decision.selectedRegion.carbonIntensity
-            },
-            data: geminiText
-        });
-
-    } catch (error: any) {
-        console.error("[Route Error] Backend crashed because:", error.message || error);
-
-        if (error.message?.includes("Redis") || error.message?.includes("Upstash")) {
-            res.status(503).json({ error: "Edge cache unavailable." });
-            return;
-        }
-        
-        if (error.message?.includes("SLA") || error.message?.includes("latency")) {
-            res.status(422).json({ error: error.message });
-            return;
-        }
-
-        res.status(500).json({ error: "Internal server error during routing or AI execution." });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`CarbonRoute Local Proxy running on http://localhost:${PORT}`);
+bootstrap().catch(err => {
+    console.error('Fatal startup error:', err);
+    process.exit(1);
 });
