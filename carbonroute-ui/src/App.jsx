@@ -104,7 +104,9 @@ function App() {
           <div className="header-brand">
             <LogoMark />
             <div className="header-titles">
-              <h1>CarbonRoute</h1>
+              <h1 className="brand-text">
+                <span className="brand-carbon">Carbon</span><span className="brand-route">Route</span>
+              </h1>
               <h2>sustainable inference routing</h2>
             </div>
           </div>
@@ -327,13 +329,21 @@ function App() {
         .main-content { max-width: 860px; margin: 0 auto; padding: 60px 24px 100px; position: relative; z-index: 1; }
 
         /* Typography */
-        h1 { 
-          font-size: 42px; 
-          font-weight: 700; 
-          margin: 0; 
-          letter-spacing: -1.5px; 
+        .brand-text {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-size: 42px;
+          margin: 0;
+          letter-spacing: -1.5px;
           color: #ffffff;
+          display: flex;
+          align-items: center;
           line-height: 1;
+        }
+        .brand-carbon {
+          font-weight: 300;
+        }
+        .brand-route {
+          font-weight: 800;
         }
         
         h2 { 
