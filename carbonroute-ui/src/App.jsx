@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 
 // --- Design tokens (Premium Grid Aesthetic, NO BLACK) ---
-// Using a rich, deep slate/indigo background instead of black.
 const bgDark = '#0F172A' 
 const panelBg = 'rgba(255, 255, 255, 0.04)'
 const panelBorder = 'rgba(255, 255, 255, 0.1)'
@@ -105,8 +104,11 @@ function App() {
           <div className="header-brand">
             <LogoMark />
             <div className="header-titles">
-              <h1>CarbonRoute</h1>
-              <h2>sustainable inference routing</h2>
+              <h1>Carbon<span className="text-gradient">Route</span></h1>
+              <div className="badge-subtitle">
+                <span className="pulse-dot-small"></span>
+                sustainable inference routing
+              </div>
             </div>
           </div>
           <div className="header-status">
@@ -286,7 +288,7 @@ function App() {
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
         :root {
           --bg: ${bgDark};
@@ -328,8 +330,36 @@ function App() {
         .main-content { max-width: 860px; margin: 0 auto; padding: 60px 24px 100px; position: relative; z-index: 1; }
 
         /* Typography */
-        h1 { font-size: 32px; font-weight: 700; margin: 0; letter-spacing: -1px; }
-        h2 { font-family: ${fontMono}; font-size: 13px; font-weight: 500; color: var(--accent); margin: 6px 0 0; text-transform: uppercase; letter-spacing: 1px; }
+        h1 { 
+          font-size: 42px; 
+          font-weight: 800; 
+          margin: 0; 
+          letter-spacing: -1.5px; 
+          line-height: 1; 
+        }
+        
+        .text-gradient {
+          background: linear-gradient(135deg, #10B981, #059669);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+
+        .badge-subtitle {
+          display: inline-flex; align-items: center; gap: 8px;
+          font-family: ${fontMono}; font-size: 11.5px; font-weight: 600;
+          color: var(--accent); margin-top: 10px; text-transform: uppercase; letter-spacing: 2.5px;
+          background: rgba(16, 185, 129, 0.08);
+          border: 1px solid rgba(16, 185, 129, 0.2);
+          padding: 6px 14px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.05);
+        }
+        
+        .pulse-dot-small {
+          width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+          box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite;
+        }
+
         .prompt-chevron { font-family: ${fontMono}; color: var(--accent); font-size: 20px; user-select: none; }
         .stat-label { font-family: ${fontMono}; font-size: 12px; color: var(--text-2); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
         .stat-value { font-size: 32px; font-weight: 700; letter-spacing: -1px; }
@@ -338,7 +368,7 @@ function App() {
 
         /* Header */
         .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 56px; gap: 16px; flex-wrap: wrap; }
-        .header-brand { display: flex; align-items: center; gap: 20px; }
+        .header-brand { display: flex; align-items: center; gap: 24px; }
         .logo-svg { filter: drop-shadow(0 12px 24px rgba(0,0,0,0.2)); transition: transform 0.3s ease; }
         .logo-svg:hover { transform: scale(1.05); }
         .header-status { 
