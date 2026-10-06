@@ -13,22 +13,17 @@ const carbonColors = { zero: '#10B981', low: '#34D399', mid: '#FBBF24', high: '#
 const fontDisplay = '"Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 const fontMono = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
 
-function LogoMark({ size = 48 }) {
+function LogoMark({ size = 44 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-svg">
-      <rect width="48" height="48" rx="14" fill="url(#glass-grad)" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-      <path d="M30 18C28.2 15.6 24.8 14 20 14C14 14 14 20 14 24C14 28 14 34 20 34C24.8 34 28.2 32.4 30 30" stroke="url(#accent-grad)" strokeWidth="3" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.5))' }} />
-      <path d="M21 24H35" stroke="rgba(255,255,255,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M31 20L35 24L31 28" stroke="rgba(255,255,255,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="35" cy="24" r="2.5" fill="#10B981" style={{ filter: 'drop-shadow(0 0 6px #10B981)' }} />
+    <svg width={size} height={size} viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-svg">
+      <path d="M22 2C10.9543 2 2 10.9543 2 22C2 33.0457 10.9543 42 22 42C33.0457 42 42 33.0457 42 22C42 16.6 40 11.7 36.8 7.8" stroke="url(#ring-grad)" strokeWidth="4" strokeLinecap="round" />
+      <path d="M22 14C17.5817 14 14 17.5817 14 22C14 26.4183 17.5817 30 22 30C25.0454 30 27.6942 28.2982 29.0805 25.8" stroke="#10B981" strokeWidth="4" strokeLinecap="round" />
+      <circle cx="34" cy="14" r="4" fill="#10B981" />
+      <path d="M22 14L34 14" stroke="#10B981" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 6"/>
       <defs>
-        <linearGradient id="glass-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="rgba(255,255,255,0.2)" />
-          <stop offset="1" stopColor="rgba(255,255,255,0.02)" />
-        </linearGradient>
-        <linearGradient id="accent-grad" x1="14" y1="14" x2="30" y2="34" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#10B981" />
-          <stop offset="1" stopColor="#34D399" />
+        <linearGradient id="ring-grad" x1="2" y1="2" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+          <stop stopColor="rgba(255,255,255,0.9)" />
+          <stop offset="1" stopColor="rgba(255,255,255,0.2)" />
         </linearGradient>
       </defs>
     </svg>
