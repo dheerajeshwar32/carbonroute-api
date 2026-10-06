@@ -148,7 +148,7 @@ function App() {
         {/* --- Empty state --- */}
         {!result && !loading && (
           <div className="empty-state fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="empty-icon">Γîÿ</div>
+            <div className="empty-icon">⌘</div>
             <p>System ready. Awaiting inference workload.</p>
           </div>
         )}
@@ -157,7 +157,7 @@ function App() {
         {isError && (
           <div className={`${panelClass} error-panel fade-in-up`}>
             <div className="error-header">
-              <span className="error-icon">ΓÜá∩╕Å</span>
+              <span className="error-icon">⚠️</span>
               <p className="error-label">Routing Exception</p>
             </div>
             <p className="error-message">{result.data}</p>
@@ -319,11 +319,12 @@ function App() {
         .main-content { max-width: 860px; margin: 0 auto; padding: 60px 24px 100px; position: relative; z-index: 1; }
 
         /* Typography */
-        h1.brand-text { font-size: 32px; margin: 0; letter-spacing: -1px; display: flex; align-items: center; }
+        h1 { font-size: 32px; font-weight: 700; margin: 0; letter-spacing: -1px; }
+        h2 { font-family: ${fontMono}; font-size: 13px; font-weight: 500; color: var(--accent); margin: 6px 0 0; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .brand-text { font-size: 32px; margin: 0; letter-spacing: -1px; display: flex; align-items: center; }
         .brand-carbon { font-weight: 700; color: var(--accent); }
         .brand-route { font-weight: 300; color: #F8FAFC; }
-
-        h2 { font-family: ${fontMono}; font-size: 13px; font-weight: 500; color: var(--accent); margin: 6px 0 0; text-transform: uppercase; letter-spacing: 1px; }
 
 
         .prompt-chevron { font-family: ${fontMono}; color: var(--accent); font-size: 20px; user-select: none; }
