@@ -114,8 +114,12 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || "https://carbonroute-ipqv.o
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <LogoMark />
             <div>
-              <div style={{ fontSize: '21px', fontWeight: 700, letterSpacing: '-0.3px', lineHeight: 1.2 }}>CarbonRoute</div>
-              <div style={{ fontFamily: fontMono, fontSize: '12.5px', color: inkMuted, marginTop: '2px' }}>sustainable inference routing</div>
+              <div style={{ fontSize: '24px', letterSpacing: '-0.5px', lineHeight: 1.2, color: ink }}>
+                <span style={{ fontWeight: 300 }}>Carbon</span><span style={{ fontWeight: 800 }}>Route</span>
+              </div>
+              <div style={{ fontFamily: fontMono, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1.5px', color: inkMuted, marginTop: '4px' }}>
+                Sustainable Inference Routing
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: fontMono, fontSize: '12px', color: inkMuted }}>
