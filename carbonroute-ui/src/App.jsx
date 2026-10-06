@@ -1,31 +1,32 @@
 import { useState, useEffect } from 'react'
 
-// --- Design tokens -----------------------------------------------------
-// Grounded in the subject: a grid/route control panel, not a generic
-// SaaS card kit. Color does real work — the carbon scale (green/amber/
-// red) is the only saturated color in the page, and it's tied to the
-// actual live_carbon_intensity value, not decoration.
-const ink = '#15211A'
-const inkMuted = '#5C6B61'
-const paper = '#F3F5F0'
-const panel = '#FDFEFC'
-const hairline = '#DCE3D8'
-const accent = '#28633F'       // brand / action — used sparingly
-const accentSoft = 'rgba(40, 99, 63, 0.10)'
-const carbonColors = { zero: '#28633F', low: '#3E8F5D', mid: '#C08A2E', high: '#B14832' }
+// --- Design tokens (Premium Dark Mode) ---
+const bgDark = '#090A0B'
+const panelBg = 'rgba(255, 255, 255, 0.03)'
+const panelBorder = 'rgba(255, 255, 255, 0.08)'
+const textPrimary = '#F3F4F6'
+const textSecondary = '#9CA3AF'
+const accent = '#10B981' // glowing emerald
+const carbonColors = { zero: '#10B981', low: '#34D399', mid: '#FBBF24', high: '#F43F5E' }
 
 const fontDisplay = '"Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 const fontMono = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
 
-function LogoMark({ size = 38 }) {
+function LogoMark({ size = 42 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0.5" y="0.5" width="39" height="39" rx="9" fill={panel} stroke={hairline} />
-      <circle cx="11" cy="11" r="3" stroke={ink} strokeWidth="2" fill={panel} />
-      <circle cx="29" cy="11" r="3" stroke={ink} strokeWidth="2" fill={panel} />
-      <path d="M11 14 C11 21, 16 22, 20 25" stroke={ink} strokeWidth="2" strokeLinecap="round" fill="none" />
-      <path d="M29 14 C29 21, 24 22, 20 25" stroke={ink} strokeWidth="2" strokeLinecap="round" fill="none" />
-      <circle cx="20" cy="28" r="3.5" fill={accent} />
+      <rect x="0" y="0" width="40" height="40" rx="12" fill="url(#logo-grad)" stroke={panelBorder} strokeWidth="1" />
+      <circle cx="12" cy="12" r="3" fill={textPrimary} />
+      <circle cx="28" cy="12" r="3" fill={textPrimary} />
+      <path d="M12 15 C12 23, 17 24, 20 27" stroke={textSecondary} strokeWidth="2" strokeLinecap="round" fill="none" />
+      <path d="M28 15 C28 23, 23 24, 20 27" stroke={textSecondary} strokeWidth="2" strokeLinecap="round" fill="none" />
+      <circle cx="20" cy="30" r="4" fill={accent} style={{ filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.8))' }} />
+      <defs>
+        <linearGradient id="logo-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop stopColor="rgba(255,255,255,0.08)" />
+          <stop offset="1" stopColor="rgba(255,255,255,0.01)" />
+        </linearGradient>
+      </defs>
     </svg>
   )
 }
@@ -35,12 +36,13 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [gaugeWidth, setGaugeWidth] = useState(0)
-
+  
   const [maxLatency, setMaxLatency] = useState(200)
   const [carbonWeight, setCarbonWeight] = useState(90)
   const costWeight = 100 - carbonWeight
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "https://carbonroute-ipqv.onrender.com/api/v1/inference";
+  const API_URL = import.meta.env.VITE_API_BASE_URL || "https://carbonroute-ipqv.onrender.com/api/v1/inference";
+
   const handleRouteRequest = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -58,7 +60,11 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || "https://carbonroute-ipqv.o
         })
       })
       const data = await response.json()
-      setResult(data)
+      if (!response.ok) {
+        setResult({ data: `Error: ${data.error || response.statusText}`, telemetry: {} })
+      } else {
+        setResult(data)
+      }
     } catch (error) {
       console.error("Routing failed:", error)
       setResult({ data: "Error: ensure your backend is live.", telemetry: {} })
@@ -76,193 +82,153 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || "https://carbonroute-ipqv.o
 
   useEffect(() => {
     if (result && !isError) {
-      const t = setTimeout(() => setGaugeWidth(carbonPct), 60)
+      const t = setTimeout(() => setGaugeWidth(carbonPct), 100)
       return () => clearTimeout(t)
     }
   }, [result, isError, carbonPct])
 
-  const panelStyle = {
-    backgroundColor: panel,
-    borderRadius: '10px',
-    border: `1px solid ${hairline}`,
-  }
+  const panelClass = "premium-panel"
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      width: '100vw',
-      backgroundColor: paper,
-      color: ink,
-      fontFamily: fontDisplay,
-      position: 'relative',
-      overflowX: 'hidden',
-      WebkitFontSmoothing: 'antialiased'
-    }}>
+    <div className="app-container">
+      {/* Animated gradient mesh background */}
+      <div className="bg-mesh"></div>
 
-      {/* faint schematic grid — texture, not decoration */}
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        backgroundImage: `linear-gradient(${hairline} 1px, transparent 1px), linear-gradient(90deg, ${hairline} 1px, transparent 1px)`,
-        backgroundSize: '44px 44px',
-        opacity: 0.35
-      }} />
-
-      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '56px 20px 80px', position: 'relative', zIndex: 1 }}>
-
+      <div className="main-content">
         {/* --- Header --- */}
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '40px', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <header className="header fade-in">
+          <div className="header-brand">
             <LogoMark />
-            <div>
-              <div style={{ fontSize: '21px', fontWeight: 700, letterSpacing: '-0.3px', lineHeight: 1.2 }}>CarbonRoute</div>
-              <div style={{ fontFamily: fontMono, fontSize: '12.5px', color: inkMuted, marginTop: '2px' }}>sustainable inference routing</div>
+            <div className="header-titles">
+              <h1>CarbonRoute</h1>
+              <h2>sustainable inference routing</h2>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: fontMono, fontSize: '12px', color: inkMuted }}>
-            <span className="live-dot" style={{ width: '7px', height: '7px', borderRadius: '50%', background: accent, display: 'inline-block' }} />
+          <div className="header-status">
+            <span className="live-dot" />
             grid live
           </div>
         </header>
 
         {/* --- Input --- */}
-        <div style={{ ...panelStyle, padding: '6px 6px 14px', marginBottom: '32px' }}>
-          <form onSubmit={handleRouteRequest} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ fontFamily: fontMono, color: accent, fontSize: '17px', paddingLeft: '16px', userSelect: 'none' }}>{'>'}</span>
+        <div className={`${panelClass} input-panel fade-in`}>
+          <form onSubmit={handleRouteRequest} className="input-form">
+            <span className="prompt-chevron">{'>'}</span>
             <input
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Enter a prompt to route"
-              style={{
-                flex: 1,
-                padding: '16px 12px',
-                fontSize: '16px',
-                fontFamily: fontMono,
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: ink,
-                outline: 'none'
-              }}
+              placeholder="Enter a prompt to route..."
+              className="prompt-input"
               required
             />
             <button
               type="submit"
               disabled={loading}
-              className="run-button"
-              style={{
-                margin: '0 6px',
-                padding: '13px 26px',
-                background: accent,
-                color: paper,
-                border: 'none',
-                borderRadius: '6px',
-                cursor: loading ? 'wait' : 'pointer',
-                fontSize: '14px',
-                fontWeight: 600,
-                fontFamily: fontDisplay,
-                opacity: loading ? 0.7 : 1
-              }}>
-              {loading ? 'Routing…' : 'Run'}
+              className={`run-button ${loading ? 'loading' : ''}`}
+            >
+              {loading ? 'Routing...' : 'Run'}
             </button>
           </form>
           
-          <div style={{ padding: '0 16px 4px 16px', display: 'flex', gap: '30px', flexWrap: 'wrap', marginTop: '10px' }}>
-            <div style={{ flex: 1, minWidth: '200px' }}>
-              <label style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, display: 'flex', justifyContent: 'space-between' }}>
-                <span>max latency</span>
-                <span style={{ color: ink }}>{maxLatency} ms</span>
+          <div className="sla-controls">
+            <div className="sla-control">
+              <label>
+                <span>Max Latency</span>
+                <span className="value-highlight">{maxLatency} ms</span>
               </label>
-              <input type="range" min="50" max="500" step="10" value={maxLatency} onChange={e => setMaxLatency(Number(e.target.value))} style={{ width: '100%', marginTop: '8px', accentColor: accent }} />
+              <input type="range" min="50" max="500" step="10" value={maxLatency} onChange={e => setMaxLatency(Number(e.target.value))} className="styled-slider" />
             </div>
-            <div style={{ flex: 1, minWidth: '200px' }}>
-              <label style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, display: 'flex', justifyContent: 'space-between' }}>
-                <span>priority: cost &lt; carbon</span>
-                <span style={{ color: ink }}>{costWeight}% cost / {carbonWeight}% carbon</span>
+            <div className="sla-control">
+              <label>
+                <span>Priority: Cost &lt; Carbon</span>
+                <span className="value-highlight">{costWeight}% / {carbonWeight}%</span>
               </label>
-              <input type="range" min="0" max="100" step="10" value={carbonWeight} onChange={e => setCarbonWeight(Number(e.target.value))} style={{ width: '100%', marginTop: '8px', accentColor: accent }} />
+              <input type="range" min="0" max="100" step="10" value={carbonWeight} onChange={e => setCarbonWeight(Number(e.target.value))} className="styled-slider" />
             </div>
           </div>
         </div>
 
         {/* --- Empty state --- */}
         {!result && !loading && (
-          <p style={{ fontFamily: fontMono, fontSize: '13px', color: inkMuted, textAlign: 'center', padding: '20px 0' }}>
-            No requests yet — run a prompt above to see the routing decision.
+          <p className="empty-state fade-in">
+            Awaiting prompt...
           </p>
         )}
 
         {/* --- Error --- */}
         {isError && (
-          <div style={{ ...panelStyle, padding: '24px', borderLeft: `3px solid ${carbonColors.high}` }}>
-            <p style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, margin: '0 0 8px 0' }}>error</p>
-            <p style={{ fontFamily: fontMono, fontSize: '15px', color: ink, margin: 0 }}>{result.data}</p>
+          <div className={`${panelClass} error-panel fade-in-up`}>
+            <p className="error-label">error</p>
+            <p className="error-message">{result.data}</p>
           </div>
         )}
 
         {/* --- Telemetry --- */}
         {result && !isError && (
-          <div>
-            <div style={{ ...panelStyle, display: 'flex', flexWrap: 'wrap', marginBottom: '20px' }}>
-
+          <div className="results-container">
+            <div className={`${panelClass} stats-grid fade-in-up`} style={{ animationDelay: '0.1s' }}>
               {/* Region */}
-              <div style={{ flex: '1 1 200px', padding: '22px 24px' }}>
-                <p style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, margin: '0 0 10px 0' }}>routed region</p>
-                <div style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.3px' }}>{result.location || 'Unknown'}</div>
-                <div style={{ fontFamily: fontMono, fontSize: '12.5px', color: isCache ? accent : inkMuted, marginTop: '6px' }}>
+              <div className="stat-card">
+                <p className="stat-label">routed region</p>
+                <div className="stat-value">{result.location || 'Unknown'}</div>
+                <div className="stat-subtext" style={{ color: isCache ? accent : textSecondary }}>
                   {result.routed_to}
                 </div>
               </div>
 
               {/* Carbon */}
-              <div style={{ flex: '1 1 200px', padding: '22px 24px', borderLeft: `1px solid ${hairline}` }}>
-                <p style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, margin: '0 0 10px 0' }}>carbon intensity</p>
-                <div style={{ fontFamily: fontMono, fontSize: '24px', fontWeight: 500, color: ink }}>
-                  {carbonValue} <span style={{ fontSize: '13px', color: inkMuted }}>gCO2e/kWh</span>
+              <div className="stat-card">
+                <p className="stat-label">carbon intensity</p>
+                <div className="stat-value" style={{ textShadow: `0 0 16px ${carbonColor}40` }}>
+                  {carbonValue} <span className="stat-unit">gCO2e/kWh</span>
                 </div>
-                <div style={{ height: '5px', background: hairline, borderRadius: '3px', marginTop: '10px', overflow: 'hidden' }}>
-                  <div className="gauge-fill" style={{ height: '100%', width: `${gaugeWidth}%`, background: carbonColor, borderRadius: '3px' }} />
+                <div className="gauge-container">
+                  <div className="gauge-fill" style={{ width: `${gaugeWidth}%`, background: carbonColor, boxShadow: `0 0 8px ${carbonColor}` }} />
                 </div>
-                <div style={{ fontFamily: fontMono, fontSize: '12.5px', color: carbonColor, marginTop: '8px' }}>
+                <div className="stat-subtext" style={{ color: carbonColor }}>
                   {isCache ? 'zero-emission cache' : 'live grid draw'}
                 </div>
               </div>
 
               {/* Latency */}
-              <div style={{ flex: '1 1 200px', padding: '22px 24px', borderLeft: `1px solid ${hairline}` }}>
-                <p style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, margin: '0 0 10px 0' }}>latency</p>
-                <div style={{ fontFamily: fontMono, fontSize: '24px', fontWeight: 500 }}>
-                  {result.telemetry?.latency_ms || 0} <span style={{ fontSize: '13px', color: inkMuted }}>ms</span>
+              <div className="stat-card">
+                <p className="stat-label">latency</p>
+                <div className="stat-value">
+                  {result.telemetry?.latency_ms || 0} <span className="stat-unit">ms</span>
                 </div>
-                <div style={{ fontFamily: fontMono, fontSize: '12.5px', color: isCache ? accent : inkMuted, marginTop: '31px' }}>
+                <div className="stat-subtext" style={{ marginTop: '33px', color: isCache ? accent : textSecondary }}>
                   {isCache ? 'local edge execution' : 'cloud roundtrip'}
                 </div>
               </div>
             </div>
 
             {/* --- Output --- */}
-            <div style={{ ...panelStyle, padding: '28px', borderLeft: `3px solid ${accent}` }}>
-              <p style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, margin: '0 0 14px 0' }}>output</p>
-              <div style={{ fontFamily: fontMono, color: ink, fontSize: '15px', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
-                <span style={{ color: accent }}>{'> '}</span>{result.data}
+            <div className={`${panelClass} output-panel fade-in-up`} style={{ animationDelay: '0.2s' }}>
+              <p className="stat-label">output</p>
+              <div className="output-content">
+                <span className="prompt-chevron">{'> '}</span>{result.data}
               </div>
             </div>
 
             {/* --- Impact Metrics --- */}
             {result.impact && (
-              <div style={{ ...panelStyle, marginTop: '20px', padding: '24px' }}>
-                <p style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, margin: '0 0 14px 0' }}>environmental impact (estimated)</p>
-                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '20px', fontWeight: 700 }}>{result.impact.estimated_emissions_avoided_g}g</div>
-                    <div style={{ fontFamily: fontMono, fontSize: '12px', color: inkMuted, marginTop: '4px' }}>CO2 avoided vs baseline</div>
+              <div className={`${panelClass} impact-panel fade-in-up`} style={{ animationDelay: '0.3s' }}>
+                <p className="stat-label">environmental impact (estimated)</p>
+                <div className="impact-grid">
+                  <div>
+                    <div className="impact-value">{result.impact.estimated_emissions_avoided_g}g</div>
+                    <div className="impact-label">CO2 avoided vs baseline</div>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '20px', fontWeight: 700, color: result.impact.carbon_saved_pct > 0 ? accent : ink }}>{result.impact.carbon_saved_pct}%</div>
-                    <div style={{ fontFamily: fontMono, fontSize: '12px', color: inkMuted, marginTop: '4px' }}>carbon reduction</div>
+                  <div>
+                    <div className="impact-value" style={{ color: result.impact.carbon_saved_pct > 0 ? accent : textPrimary }}>
+                      {result.impact.carbon_saved_pct}%
+                    </div>
+                    <div className="impact-label">carbon reduction</div>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '20px', fontWeight: 700 }}>{result.impact.estimated_emissions_g}g</div>
-                    <div style={{ fontFamily: fontMono, fontSize: '12px', color: inkMuted, marginTop: '4px' }}>total emissions</div>
+                  <div>
+                    <div className="impact-value">{result.impact.estimated_emissions_g}g</div>
+                    <div className="impact-label">total emissions</div>
                   </div>
                 </div>
               </div>
@@ -270,31 +236,35 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || "https://carbonroute-ipqv.o
 
             {/* --- Routing Candidates --- */}
             {result.routing?.candidates && (
-              <div style={{ ...panelStyle, marginTop: '20px' }}>
-                <p style={{ fontFamily: fontMono, fontSize: '11.5px', color: inkMuted, padding: '24px 24px 12px', margin: 0 }}>routing candidates</p>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: fontMono, fontSize: '12px', textAlign: 'left' }}>
+              <div className={`${panelClass} candidates-panel fade-in-up`} style={{ animationDelay: '0.4s' }}>
+                <p className="stat-label" style={{ padding: '24px 24px 12px', margin: 0 }}>routing candidates</p>
+                <div className="table-container">
+                  <table className="candidates-table">
                     <thead>
-                      <tr style={{ borderBottom: `1px solid ${hairline}`, color: inkMuted }}>
-                        <th style={{ padding: '12px 24px', fontWeight: 'normal' }}>Region</th>
-                        <th style={{ padding: '12px 24px', fontWeight: 'normal' }}>Latency</th>
-                        <th style={{ padding: '12px 24px', fontWeight: 'normal' }}>Carbon</th>
-                        <th style={{ padding: '12px 24px', fontWeight: 'normal' }}>Status</th>
+                      <tr>
+                        <th>Region</th>
+                        <th>Latency</th>
+                        <th>Carbon</th>
+                        <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {result.routing.candidates.map((c, i) => (
-                        <tr key={c.id} style={{ borderBottom: i < result.routing.candidates.length - 1 ? `1px solid ${hairline}` : 'none' }}>
-                          <td style={{ padding: '12px 24px' }}>{c.location} <span style={{ color: inkMuted, marginLeft: '6px' }}>{c.id}</span></td>
-                          <td style={{ padding: '12px 24px', color: c.latency_ms > maxLatency ? carbonColors.high : ink }}>{c.latency_ms} ms</td>
-                          <td style={{ padding: '12px 24px' }}>{c.carbon_intensity} g</td>
-                          <td style={{ padding: '12px 24px' }}>
-                            {c.status === 'selected' ? <span style={{ color: accent, fontWeight: 'bold' }}>Selected</span> :
-                             c.status === 'excluded' ? <span style={{ color: carbonColors.high }}>Excluded</span> :
-                             <span style={{ color: inkMuted }}>Eligible</span>}
-                          </td>
-                        </tr>
-                      ))}
+                      {result.routing.candidates.map((c, i) => {
+                        const isSelected = c.status === 'selected'
+                        const isExcluded = c.status === 'excluded'
+                        return (
+                          <tr key={c.id} className={isSelected ? 'row-selected' : ''}>
+                            <td>{c.location} <span>{c.id}</span></td>
+                            <td style={{ color: c.latency_ms > maxLatency ? carbonColors.high : textPrimary }}>{c.latency_ms} ms</td>
+                            <td>{c.carbon_intensity} g</td>
+                            <td>
+                              {isSelected ? <span className="status-selected">Selected</span> :
+                               isExcluded ? <span className="status-excluded">Excluded</span> :
+                               <span className="status-eligible">Eligible</span>}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -305,47 +275,163 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || "https://carbonroute-ipqv.o
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+        :root {
+          --bg: ${bgDark};
+          --panel: ${panelBg};
+          --border: ${panelBorder};
+          --text-1: ${textPrimary};
+          --text-2: ${textSecondary};
+          --accent: ${accent};
+        }
 
         html, body, #root {
-          margin: 0 !important;
-          padding: 0 !important;
-          width: 100% !important;
-          max-width: none !important;
-          background-color: ${paper} !important;
+          margin: 0; padding: 0; width: 100%; min-height: 100vh;
+          background-color: var(--bg);
+          color: var(--text-1);
+          font-family: ${fontDisplay};
+          -webkit-font-smoothing: antialiased;
         }
 
-        input::placeholder { color: #9AA69C; }
-
-        button:focus-visible, input:focus-visible {
-          outline: 2px solid ${accent};
-          outline-offset: 2px;
+        /* Ambient Glow Background */
+        .bg-mesh {
+          position: fixed; inset: 0; z-index: 0; pointer-events: none;
+          background-image: 
+            radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.05), transparent 30%),
+            radial-gradient(circle at 85% 30%, rgba(244, 63, 94, 0.03), transparent 30%);
         }
 
-        .run-button:hover:not(:disabled) {
-          filter: brightness(1.08);
-        }
+        /* Layout */
+        .app-container { position: relative; width: 100%; min-height: 100vh; overflow-x: hidden; }
+        .main-content { max-width: 820px; margin: 0 auto; padding: 60px 24px 100px; position: relative; z-index: 1; }
 
-        .gauge-fill {
-          transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-        }
+        /* Typography */
+        h1 { font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
+        h2 { font-family: ${fontMono}; font-size: 13px; font-weight: 400; color: var(--text-2); margin: 4px 0 0; }
+        .prompt-chevron { font-family: ${fontMono}; color: var(--accent); font-size: 18px; user-select: none; }
+        .stat-label { font-family: ${fontMono}; font-size: 12px; color: var(--text-2); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+        .stat-unit { font-size: 14px; font-weight: 500; color: var(--text-2); }
+        .stat-subtext { font-family: ${fontMono}; font-size: 12.5px; margin-top: 8px; }
 
+        /* Header */
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 48px; gap: 16px; flex-wrap: wrap; }
+        .header-brand { display: flex; align-items: center; gap: 16px; }
+        .header-status { display: flex; align-items: center; gap: 8px; font-family: ${fontMono}; font-size: 12px; color: var(--text-2); }
+        
         .live-dot {
-          animation: pulse 2.4s ease-in-out infinite;
+          width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+          box-shadow: 0 0 10px var(--accent); animation: pulse 2s infinite;
         }
 
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.35; }
+        /* Glassmorphic Panels */
+        .premium-panel {
+          background: var(--panel);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+          overflow: hidden;
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .gauge-fill { transition: none; }
-          .live-dot { animation: none; }
+        /* Input */
+        .input-panel { padding: 8px 8px 20px; margin-bottom: 40px; }
+        .input-form { display: flex; align-items: center; gap: 8px; padding: 12px 16px; }
+        .prompt-input {
+          flex: 1; padding: 12px; font-size: 17px; font-family: ${fontMono};
+          background: transparent; border: none; color: var(--text-1); outline: none;
         }
+        .prompt-input::placeholder { color: #4B5563; }
+        
+        .run-button {
+          padding: 14px 28px; background: rgba(16, 185, 129, 0.1);
+          color: var(--accent); border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 600;
+          font-family: ${fontDisplay}; transition: all 0.2s;
+          box-shadow: 0 0 20px rgba(16, 185, 129, 0.05);
+        }
+        .run-button:hover:not(:disabled) {
+          background: rgba(16, 185, 129, 0.2);
+          box-shadow: 0 0 24px rgba(16, 185, 129, 0.2);
+          transform: translateY(-1px);
+        }
+        .run-button.loading { cursor: wait; opacity: 0.7; }
 
-        @media (max-width: 480px) {
-          header { flex-direction: column; align-items: flex-start; }
+        /* SLA Sliders */
+        .sla-controls { padding: 12px 24px 4px; display: flex; gap: 40px; flex-wrap: wrap; }
+        .sla-control { flex: 1; min-width: 220px; }
+        .sla-control label {
+          font-family: ${fontMono}; font-size: 12px; color: var(--text-2);
+          display: flex; justify-content: space-between; margin-bottom: 12px;
+        }
+        .value-highlight { color: var(--text-1); font-weight: 500; }
+        
+        /* Custom Premium Range Slider */
+        .styled-slider {
+          -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px;
+          background: rgba(255, 255, 255, 0.1); outline: none; margin: 0;
+        }
+        .styled-slider::-webkit-slider-thumb {
+          -webkit-appearance: none; appearance: none;
+          width: 16px; height: 16px; border-radius: 50%;
+          background: var(--text-1); cursor: pointer;
+          box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+          transition: transform 0.1s;
+        }
+        .styled-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        /* Stats Grid */
+        .stats-grid { display: flex; flex-wrap: wrap; margin-bottom: 24px; }
+        .stat-card { flex: 1 1 200px; padding: 28px; border-right: 1px solid var(--border); }
+        .stat-card:last-child { border-right: none; }
+        
+        .gauge-container { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; margin-top: 14px; overflow: hidden; }
+        .gauge-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* Output */
+        .output-panel { padding: 32px; border-left: 4px solid var(--accent); margin-bottom: 24px; }
+        .output-content { font-family: ${fontMono}; font-size: 15px; line-height: 1.7; white-space: pre-wrap; color: #E5E7EB; }
+
+        /* Impact */
+        .impact-panel { padding: 28px; margin-bottom: 24px; }
+        .impact-grid { display: flex; gap: 32px; flex-wrap: wrap; }
+        .impact-grid > div { flex: 1; }
+        .impact-value { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+        .impact-label { font-family: ${fontMono}; font-size: 12px; color: var(--text-2); }
+
+        /* Table */
+        .candidates-panel { margin-bottom: 24px; }
+        .table-container { overflow-x: auto; }
+        .candidates-table { width: 100%; border-collapse: collapse; font-family: ${fontMono}; font-size: 13px; text-align: left; }
+        .candidates-table th { padding: 16px 24px; font-weight: 500; color: var(--text-2); border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.01); }
+        .candidates-table td { padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .candidates-table span { color: var(--text-2); margin-left: 8px; font-size: 11px; }
+        .row-selected { background: rgba(16, 185, 129, 0.05); }
+        .row-selected td { border-bottom: none; }
+        .status-selected { color: var(--accent); font-weight: 500; text-shadow: 0 0 8px rgba(16,185,129,0.4); }
+        .status-excluded { color: #F43F5E; }
+        .status-eligible { color: var(--text-2); }
+
+        /* Empty & Error States */
+        .empty-state { text-align: center; padding: 60px 0; font-family: ${fontMono}; color: var(--text-2); font-size: 14px; }
+        .error-panel { padding: 28px; border-left: 4px solid #F43F5E; background: rgba(244, 63, 94, 0.05); }
+        .error-label { font-family: ${fontMono}; font-size: 12px; color: #F43F5E; margin: 0 0 12px 0; text-transform: uppercase; }
+        .error-message { font-family: ${fontMono}; font-size: 15px; margin: 0; }
+
+        /* Animations */
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.9); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .fade-in { animation: fadeIn 0.6s ease-out forwards; }
+        .fade-in-up { opacity: 0; animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        @media (max-width: 640px) {
+          .stats-grid { flex-direction: column; }
+          .stat-card { border-right: none; border-bottom: 1px solid var(--border); }
+          .sla-controls { flex-direction: column; gap: 20px; }
         }
       `}</style>
     </div>
