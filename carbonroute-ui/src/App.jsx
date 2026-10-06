@@ -341,6 +341,7 @@ function App() {
         }
         .brand-carbon {
           font-weight: 800;
+          color: var(--accent);
         }
         .brand-route {
           font-weight: 300;
