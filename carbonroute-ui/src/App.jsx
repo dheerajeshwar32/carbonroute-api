@@ -336,6 +336,7 @@ function App() {
         }
         .brand-route {
           font-weight: 300;
+          color: #ffffff;
         }
         
         h2 { 
