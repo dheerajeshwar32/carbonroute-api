@@ -14,22 +14,13 @@ const fontMono = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospac
 
 function LogoMark({ size = 48 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-svg">
-      <rect width="48" height="48" rx="14" fill="url(#glass-grad)" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-      <path d="M30 18C28.2 15.6 24.8 14 20 14C14 14 14 20 14 24C14 28 14 34 20 34C24.8 34 28.2 32.4 30 30" stroke="url(#accent-grad)" strokeWidth="3" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.5))' }} />
-      <path d="M21 24H35" stroke="rgba(255,255,255,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M31 20L35 24L31 28" stroke="rgba(255,255,255,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="35" cy="24" r="2.5" fill="#10B981" style={{ filter: 'drop-shadow(0 0 6px #10B981)' }} />
-      <defs>
-        <linearGradient id="glass-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="rgba(255,255,255,0.2)" />
-          <stop offset="1" stopColor="rgba(255,255,255,0.02)" />
-        </linearGradient>
-        <linearGradient id="accent-grad" x1="14" y1="14" x2="30" y2="34" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#10B981" />
-          <stop offset="1" stopColor="#34D399" />
-        </linearGradient>
-      </defs>
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-svg">
+      <rect x="0.5" y="0.5" width="39" height="39" rx="9" fill="#0F172A" stroke="#334155" />
+      <circle cx="11" cy="11" r="3" stroke="#F8FAFC" strokeWidth="2" fill="#0F172A" />
+      <circle cx="29" cy="11" r="3" stroke="#F8FAFC" strokeWidth="2" fill="#0F172A" />
+      <path d="M11 14 C11 21, 16 22, 20 25" stroke="#F8FAFC" strokeWidth="2" strokeLinecap="round" fill="none" />
+      <path d="M29 14 C29 21, 24 22, 20 25" stroke="#F8FAFC" strokeWidth="2" strokeLinecap="round" fill="none" />
+      <circle cx="20" cy="28" r="3.5" fill="#10B981" />
     </svg>
   )
 }
