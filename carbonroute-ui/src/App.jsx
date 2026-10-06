@@ -15,7 +15,6 @@ const fontMono = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospac
 function LogoMark({ size = 48 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-svg">
-      <rect x="0.5" y="0.5" width="39" height="39" rx="9" fill="#0F172A" stroke="#334155" />
       <circle cx="11" cy="11" r="3" stroke="#F8FAFC" strokeWidth="2" fill="#0F172A" />
       <circle cx="29" cy="11" r="3" stroke="#F8FAFC" strokeWidth="2" fill="#0F172A" />
       <path d="M11 14 C11 21, 16 22, 20 25" stroke="#F8FAFC" strokeWidth="2" strokeLinecap="round" fill="none" />
