@@ -15,8 +15,8 @@ const fontMono = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospac
 function LogoMark({ size = 48 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-svg">
-      <circle cx="11" cy="11" r="3" stroke="#F8FAFC" strokeWidth="2" fill="#0F172A" />
-      <circle cx="29" cy="11" r="3" stroke="#F8FAFC" strokeWidth="2" fill="#0F172A" />
+      <circle cx="11" cy="11" r="3" stroke="#F8FAFC" strokeWidth="2" fill="none" />
+      <circle cx="29" cy="11" r="3" stroke="#F8FAFC" strokeWidth="2" fill="none" />
       <path d="M11 14 C11 21, 16 22, 20 25" stroke="#F8FAFC" strokeWidth="2" strokeLinecap="round" fill="none" />
       <path d="M29 14 C29 21, 24 22, 20 25" stroke="#F8FAFC" strokeWidth="2" strokeLinecap="round" fill="none" />
       <circle cx="20" cy="28" r="3.5" fill="#10B981" />
@@ -148,7 +148,7 @@ function App() {
         {/* --- Empty state --- */}
         {!result && !loading && (
           <div className="empty-state fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="empty-icon">⌘</div>
+            <div className="empty-icon">Γîÿ</div>
             <p>System ready. Awaiting inference workload.</p>
           </div>
         )}
@@ -157,7 +157,7 @@ function App() {
         {isError && (
           <div className={`${panelClass} error-panel fade-in-up`}>
             <div className="error-header">
-              <span className="error-icon">⚠️</span>
+              <span className="error-icon">ΓÜá∩╕Å</span>
               <p className="error-label">Routing Exception</p>
             </div>
             <p className="error-message">{result.data}</p>
@@ -319,34 +319,12 @@ function App() {
         .main-content { max-width: 860px; margin: 0 auto; padding: 60px 24px 100px; position: relative; z-index: 1; }
 
         /* Typography */
-        .brand-text {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-          font-size: 42px;
-          margin: 0;
-          letter-spacing: -1.5px;
-          color: #ffffff;
-          display: flex;
-          align-items: center;
-          line-height: 1;
-        }
-        .brand-carbon {
-          font-weight: 800;
-          color: var(--accent);
-        }
-        .brand-route {
-          font-weight: 300;
-          color: #ffffff;
-        }
-        
-        h2 { 
-          font-family: ${fontDisplay}; 
-          font-size: 11px; 
-          font-weight: 600; 
-          color: #94A3B8; 
-          margin: 8px 0 0 2px; 
-          text-transform: uppercase; 
-          letter-spacing: 4px; 
-        }
+        h1.brand-text { font-size: 32px; margin: 0; letter-spacing: -1px; display: flex; align-items: center; }
+        .brand-carbon { font-weight: 700; color: var(--accent); }
+        .brand-route { font-weight: 300; color: #F8FAFC; }
+
+        h2 { font-family: ${fontMono}; font-size: 13px; font-weight: 500; color: var(--accent); margin: 6px 0 0; text-transform: uppercase; letter-spacing: 1px; }
+
 
         .prompt-chevron { font-family: ${fontMono}; color: var(--accent); font-size: 20px; user-select: none; }
         .stat-label { font-family: ${fontMono}; font-size: 12px; color: var(--text-2); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
