@@ -13,22 +13,7 @@ const carbonColors = { zero: '#10B981', low: '#34D399', mid: '#FBBF24', high: '#
 const fontDisplay = '"Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 const fontMono = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
 
-function LogoMark({ size = 44 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-svg">
-      <path d="M22 2C10.9543 2 2 10.9543 2 22C2 33.0457 10.9543 42 22 42C33.0457 42 42 33.0457 42 22C42 16.6 40 11.7 36.8 7.8" stroke="url(#ring-grad)" strokeWidth="4" strokeLinecap="round" />
-      <path d="M22 14C17.5817 14 14 17.5817 14 22C14 26.4183 17.5817 30 22 30C25.0454 30 27.6942 28.2982 29.0805 25.8" stroke="#10B981" strokeWidth="4" strokeLinecap="round" />
-      <circle cx="34" cy="14" r="4" fill="#10B981" />
-      <path d="M22 14L34 14" stroke="#10B981" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 6"/>
-      <defs>
-        <linearGradient id="ring-grad" x1="2" y1="2" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="rgba(255,255,255,0.9)" />
-          <stop offset="1" stopColor="rgba(255,255,255,0.2)" />
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
+
 
 function App() {
   const [prompt, setPrompt] = useState('')
@@ -98,9 +83,10 @@ function App() {
         {/* --- Header --- */}
         <header className="header fade-in">
           <div className="header-brand">
-            <LogoMark />
             <div className="header-titles">
-              <h1>CarbonRoute</h1>
+              <h1 className="brand-text">
+                <span className="brand-carbon">Carbon</span><span className="brand-route">Route</span>
+              </h1>
               <h2>sustainable inference routing</h2>
             </div>
           </div>
@@ -323,7 +309,24 @@ function App() {
         .main-content { max-width: 860px; margin: 0 auto; padding: 60px 24px 100px; position: relative; z-index: 1; }
 
         /* Typography */
-        h1 { font-size: 32px; font-weight: 700; margin: 0; letter-spacing: -1px; }
+        .brand-text {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-size: 38px;
+          margin: 0;
+          letter-spacing: -1.5px;
+          color: var(--text-1);
+          display: flex;
+          align-items: center;
+        }
+        .brand-carbon {
+          font-weight: 300;
+          color: var(--text-1);
+        }
+        .brand-route {
+          font-weight: 800;
+          color: var(--text-1);
+        }
+        
         h2 { font-family: ${fontMono}; font-size: 13px; font-weight: 500; color: var(--accent); margin: 6px 0 0; text-transform: uppercase; letter-spacing: 1px; }
         .prompt-chevron { font-family: ${fontMono}; color: var(--accent); font-size: 20px; user-select: none; }
         .stat-label { font-family: ${fontMono}; font-size: 12px; color: var(--text-2); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
