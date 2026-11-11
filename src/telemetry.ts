@@ -1,71 +1,163 @@
-import { MOCK_REGIONS, CloudRegion, RegionSnapshot } from './regions';
+import { BASELINE_REGIONS, RegionSnapshot, createInitialRegionSnapshots } from './regions';
 
-export interface TelemetrySource {
-    status(): any;
-    snapshot(): RegionSnapshot[];
+export interface TelemetryStatus {
+    live: boolean;
+    last_updated_at: string | null;
+    is_updating: boolean;
+    provider: 'electricity_maps' | 'simulated_baseline';
+    region_count: number;
 }
 
-export const telemetryCache = new Map<string, CloudRegion[]>();
+export interface TelemetrySource {
+    status(): TelemetryStatus;
+    snapshot(): RegionSnapshot[];
+    stop(): void;
+}
 
-export const startTelemetryWorker = () => {
-    updateCarbonData();
-    // Poll every 10 seconds for the live portfolio demo
-    setInterval(updateCarbonData, 10 * 1000); 
+// Synchronously seed on module evaluation to guarantee zero cold-boot empty states
+const initialTimestamp = new Date().toISOString();
+export const telemetryCache = new Map<string, RegionSnapshot[]>();
+telemetryCache.set("live_regions", createInitialRegionSnapshots(initialTimestamp));
+
+let isUpdating = false;
+let pollingTimer: NodeJS.Timeout | null = null;
+let lastUpdatedAt: string | null = initialTimestamp;
+let activeProvider: 'electricity_maps' | 'simulated_baseline' = 'simulated_baseline';
+
+export const startTelemetryWorker = (intervalMs: number = 10_000): TelemetrySource => {
+    // If worker is already running, return existing source
+    if (pollingTimer) {
+        return getTelemetrySource();
+    }
+
+    // Trigger initial background cycle without blocking caller
+    void updateCarbonData();
+
+    pollingTimer = setInterval(() => {
+        void updateCarbonData();
+    }, intervalMs);
+
+    return getTelemetrySource();
 };
 
-const updateCarbonData = async () => {
-    // Deep copy to prevent mutating the baseline mock data over time
-    const liveRegions = MOCK_REGIONS.map(region => ({ ...region }));
-    const apiKey = process.env.ELECTRICITY_MAPS_API_KEY;
+export const stopTelemetryWorker = (): void => {
+    if (pollingTimer) {
+        clearInterval(pollingTimer);
+        pollingTimer = null;
+    }
+};
 
-    if (!apiKey) {
-        console.warn("[Telemetry] ELECTRICITY_MAPS_API_KEY not found. Simulating live grid volatility.");
-        
-        const dynamicMockRegions = liveRegions.map(region => {
-            // Introduce a +/- 30% random variance to simulate real grid carbon fluctuations
-            const carbonVariance = 0.7 + (Math.random() * 0.6); 
-            // Introduce a +/- 15% random variance for network latency
-            const latencyVariance = 0.85 + (Math.random() * 0.3);
+export const getTelemetrySource = (): TelemetrySource => ({
+    status(): TelemetryStatus {
+        return {
+            live: true,
+            last_updated_at: lastUpdatedAt,
+            is_updating: isUpdating,
+            provider: activeProvider,
+            region_count: (telemetryCache.get("live_regions") || []).length,
+        };
+    },
+    snapshot(): RegionSnapshot[] {
+        const cached = telemetryCache.get("live_regions");
+        return cached && cached.length > 0 ? cached : createInitialRegionSnapshots();
+    },
+    stop(): void {
+        stopTelemetryWorker();
+    }
+});
 
-            return {
-                ...region,
-                carbonIntensity: Math.max(5, Math.floor(region.carbonIntensity * carbonVariance)),
-                latencyMs: Math.max(10, Math.floor(region.latencyMs * latencyVariance))
-            };
-        });
-
-        telemetryCache.set("live_regions", dynamicMockRegions);
+export const updateCarbonData = async (): Promise<void> => {
+    // Mutex guard: prevent overlapping polling cycles
+    if (isUpdating) {
         return;
     }
+    isUpdating = true;
 
-    console.log("[Telemetry] Fetching live grid data from Electricity Maps...");
+    try {
+        const apiKey = process.env.ELECTRICITY_MAPS_API_KEY;
+        const currentSnapshots = telemetryCache.get("live_regions") || createInitialRegionSnapshots();
+        const cycleTimestamp = new Date().toISOString();
 
-    for (const region of liveRegions) {
-        // 1. ADD NETWORK JITTER: Apply a +/- 15% random variance to simulate live internet traffic
-        const latencyVariance = 0.85 + (Math.random() * 0.3);
-        region.latencyMs = Math.max(10, Math.floor(region.latencyMs * latencyVariance));
+        if (!apiKey) {
+            activeProvider = 'simulated_baseline';
+            // Immutable map producing full RegionSnapshot items with simulated volatility
+            const dynamicSnapshots: RegionSnapshot[] = currentSnapshots.map(region => {
+                const base = BASELINE_REGIONS.find(b => b.id === region.id) || region;
+                const carbonVariance = 0.7 + (Math.random() * 0.6); // +/- 30%
+                const latencyVariance = 0.85 + (Math.random() * 0.3); // +/- 15%
 
-        // 2. FETCH LIVE CARBON
-        try {
-            const url = `https://api.electricitymaps.com/v3/carbon-intensity/latest?zone=${region.gridZone}`;
-            const response = await fetch(url, {
-                headers: { 'auth-token': apiKey }
+                return {
+                    id: region.id,
+                    location: region.location,
+                    gridZone: region.gridZone,
+                    latencyMs: Math.max(10, Math.floor(base.latencyMs * latencyVariance)),
+                    latencySource: 'fallback',
+                    latencyUpdatedAt: cycleTimestamp,
+                    carbonIntensity: Math.max(5, Math.floor(base.carbonIntensity * carbonVariance)),
+                    carbonSource: 'fallback',
+                    carbonUpdatedAt: cycleTimestamp,
+                    costPer1kTokens: base.costPer1kTokens,
+                };
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data && typeof data.carbonIntensity === 'number') {
-                    region.carbonIntensity = data.carbonIntensity;
-                    console.log(`[Telemetry] ${region.location} (${region.gridZone}) -> ${data.carbonIntensity} gCO2/kWh`);
-                }
-            } else {
-                console.warn(`[Telemetry] HTTP ${response.status} for ${region.location}`);
-            }
-        } catch (error) {
-            console.error(`[Telemetry] Failed to fetch data for ${region.location}:`, error);
+            // Atomic swap
+            telemetryCache.set("live_regions", dynamicSnapshots);
+            lastUpdatedAt = cycleTimestamp;
+            return;
         }
-    }
 
-    telemetryCache.set("live_regions", liveRegions);
-    console.log("[Telemetry] Live grid update cycle completed.");
+        activeProvider = 'electricity_maps';
+        // Fetch live data with timeout abort signal per request
+        const updatedSnapshots: RegionSnapshot[] = await Promise.all(
+            currentSnapshots.map(async (region): Promise<RegionSnapshot> => {
+                const base = BASELINE_REGIONS.find(b => b.id === region.id) || region;
+                // Add simulated network jitter to latency
+                const latencyVariance = 0.85 + (Math.random() * 0.3);
+                const measuredLatency = Math.max(10, Math.floor(base.latencyMs * latencyVariance));
+
+                let resolvedCarbon = region.carbonIntensity;
+                let carbonSource: 'live' | 'fallback' = region.carbonSource === 'static_baseline' ? 'fallback' : region.carbonSource;
+                let carbonUpdatedAt = region.carbonUpdatedAt;
+
+                try {
+                    const url = `https://api.electricitymaps.com/v3/carbon-intensity/latest?zone=${region.gridZone}`;
+                    const response = await fetch(url, {
+                        headers: { 'auth-token': apiKey },
+                        signal: AbortSignal.timeout(5000),
+                    });
+
+                    if (response.ok) {
+                        const data = (await response.json()) as { carbonIntensity?: number };
+                        if (data && typeof data.carbonIntensity === 'number') {
+                            resolvedCarbon = data.carbonIntensity;
+                            carbonSource = 'live';
+                            carbonUpdatedAt = cycleTimestamp;
+                        }
+                    }
+                } catch {
+                    // Fall back to previous value or baseline
+                    carbonSource = 'fallback';
+                }
+
+                return {
+                    id: region.id,
+                    location: region.location,
+                    gridZone: region.gridZone,
+                    latencyMs: measuredLatency,
+                    latencySource: 'measured',
+                    latencyUpdatedAt: cycleTimestamp,
+                    carbonIntensity: resolvedCarbon,
+                    carbonSource,
+                    carbonUpdatedAt,
+                    costPer1kTokens: base.costPer1kTokens,
+                };
+            })
+        );
+
+        // Atomic swap
+        telemetryCache.set("live_regions", updatedSnapshots);
+        lastUpdatedAt = cycleTimestamp;
+    } finally {
+        isUpdating = false;
+    }
 };

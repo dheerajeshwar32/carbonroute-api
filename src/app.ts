@@ -56,6 +56,7 @@ function routingView(decision: RoutingDecision, executedRegion: string | null) {
             max_latency_ms: decision.policy.maxLatencyMs,
             carbon_weight: round(decision.policy.carbonWeight),
             cost_weight: round(decision.policy.costWeight),
+            latency_weight: round(decision.policy.latencyWeight),
         },
         baseline_region: decision.baseline.id,
         candidates: [
@@ -63,6 +64,7 @@ function routingView(decision: RoutingDecision, executedRegion: string | null) {
                 ...regionView(s.region),
                 normalized_carbon: round(s.normalizedCarbon),
                 normalized_cost: round(s.normalizedCost),
+                normalized_latency: round(s.normalizedLatency),
                 score: round(s.score),
                 rank: s.rank,
                 status: s.region.id === winner ? 'selected' : 'eligible',
@@ -71,6 +73,7 @@ function routingView(decision: RoutingDecision, executedRegion: string | null) {
                 ...regionView(e.region),
                 normalized_carbon: null,
                 normalized_cost: null,
+                normalized_latency: null,
                 score: null,
                 rank: null,
                 status: 'excluded',
@@ -106,10 +109,28 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
 
     app.set('trust proxy', config.TRUST_PROXY);
     app.use(helmet());
-    app.use(cors({ origin: config.CORS_ORIGINS, methods: ['GET', 'POST'], maxAge: 600 }));
+
+    // Dynamic CORS with support for Vercel preview environments
+    const vercelPreviewRegex = /^https:\/\/carbon-route.*\.vercel\.app$/;
+    app.use(cors({
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
+            if (config.CORS_ORIGINS.includes(origin) || vercelPreviewRegex.test(origin)) {
+                return callback(null, true);
+            }
+            if (config.NODE_ENV !== 'production' && /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+                return callback(null, true);
+            }
+            return callback(null, false);
+        },
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'],
+        maxAge: 600,
+    }));
+
     app.use(express.json({ limit: '16kb' }));
 
-    // Request id + access log (prompts are never logged — only their length).
+    // Request ID & lifecycle logging
     app.use((req, res, next) => {
         const incoming = req.get('x-request-id');
         req.id = incoming && /^[\w-]{1,64}$/.test(incoming) ? incoming : randomUUID();
@@ -133,11 +154,24 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
         standardHeaders: 'draft-8',
         legacyHeaders: false,
         handler: (req, res) => {
+            const code = 'rate_limited';
+            const message = 'Too many requests — please slow down and try again shortly.';
             res.status(429).json({
+                success: false,
                 status: 'error',
-                code: 'rate_limited',
-                error: 'Too many requests — please slow down and try again shortly.',
+                code,
+                message,
+                error: {
+                    code,
+                    message,
+                    details: null,
+                },
                 request_id: req.id,
+                meta: {
+                    request_id: req.id,
+                    timestamp: new Date().toISOString(),
+                    version: 'v1',
+                },
             });
         },
     });
@@ -145,7 +179,13 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
     // --- Health ---------------------------------------------------------------
     app.get('/health', (_req, res) => {
         res.json({
+            success: true,
             status: 'ok',
+            meta: {
+                request_id: _req.id,
+                timestamp: new Date().toISOString(),
+                version: 'v1',
+            },
             uptime_s: Math.round((Date.now() - startedAt) / 1000),
             execution_mode: executionLabel,
             cache: cache.status(),
@@ -154,9 +194,15 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
     });
 
     // --- Live region telemetry -------------------------------------------------
-    app.get('/api/v1/regions', limiter(config.RATE_LIMIT_MAX * 6), (_req, res) => {
+    app.get('/api/v1/regions', limiter(config.RATE_LIMIT_MAX * 6), (req, res) => {
         res.json({
+            success: true,
             status: 'success',
+            meta: {
+                request_id: req.id,
+                timestamp: new Date().toISOString(),
+                version: 'v1',
+            },
             execution_mode: executionLabel,
             default_model: config.DEFAULT_MODEL,
             allowed_models: config.ALLOWED_MODELS,
@@ -169,6 +215,16 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
     // --- Inference ---------------------------------------------------------------
     app.post('/api/v1/inference', limiter(config.RATE_LIMIT_MAX), async (req: Request, res: Response) => {
         const startTime = performance.now();
+
+        // Safe Client Disconnect: bind AbortController to response lifecycle
+        const abortController = new AbortController();
+        res.on('close', () => {
+            if (!res.writableEnded) {
+                req.log.info('Client connection closed prior to completion; aborting upstream inference');
+                abortController.abort();
+            }
+        });
+
         const parsed = schema.safeParse(req.body);
         if (!parsed.success) {
             throw new ValidationError('Invalid request payload.', formatIssues(parsed.error));
@@ -176,8 +232,7 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
         const { prompt, sla } = parsed.data;
         const model = parsed.data.model ?? config.DEFAULT_MODEL;
 
-        // Route first. A cache hit can satisfy any latency SLA, so an SLA failure
-        // is only raised if we actually need cloud compute.
+        // Route first
         let decision: RoutingDecision | null = null;
         let slaError: SLAViolationError | null = null;
         try {
@@ -196,8 +251,15 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
             const regions = telemetry.snapshot();
             const baseline = decision?.baseline
                 ?? regions.reduce((a, b) => (b.latencyMs < a.latencyMs ? b : a));
+
             res.json({
+                success: true,
                 status: 'success',
+                meta: {
+                    request_id: req.id,
+                    timestamp: new Date().toISOString(),
+                    version: 'v1',
+                },
                 request_id: req.id,
                 cache_hit: true,
                 execution_mode: 'cache',
@@ -225,9 +287,15 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
 
         if (slaError || !decision) throw slaError ?? new SLAViolationError('No routing decision available.');
 
-        const result = await inference.generate(model, prompt, decision.ranked.map(r => r.region.id));
+        // Pass client cancellation signal down to inference provider
+        const result = await inference.generate(
+            model,
+            prompt,
+            decision.ranked.map(r => r.region.id),
+            abortController.signal
+        );
 
-        // In regional mode failover may have moved execution to a lower-ranked region.
+        // Failover support: winner region resolution
         const executed = (result.executedRegion
             && decision.ranked.find(r => r.region.id === result.executedRegion)?.region)
             || decision.selected.region;
@@ -243,7 +311,13 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
         req.log.info({ model, region: executed.id, mode: executionLabel, promptChars: prompt.length }, 'routed');
 
         res.json({
+            success: true,
             status: 'success',
+            meta: {
+                request_id: req.id,
+                timestamp: new Date().toISOString(),
+                version: 'v1',
+            },
             request_id: req.id,
             cache_hit: false,
             execution_mode: executionLabel,
@@ -272,30 +346,98 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
 
     // --- 404 + error handling ---------------------------------------------------
     app.use((req, res) => {
-        res.status(404).json({ status: 'error', code: 'not_found', error: `No route for ${req.method} ${req.path}`, request_id: req.id });
+        const code = 'not_found';
+        const message = `No route for ${req.method} ${req.path}`;
+        res.status(404).json({
+            success: false,
+            status: 'error',
+            code,
+            message,
+            error: {
+                code,
+                message,
+                details: null,
+            },
+            request_id: req.id,
+            meta: {
+                request_id: req.id,
+                timestamp: new Date().toISOString(),
+                version: 'v1',
+            },
+        });
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
         const requestId = req.id;
-        const bodyErr = err as { type?: string };
+        const meta = {
+            request_id: requestId,
+            timestamp: new Date().toISOString(),
+            version: 'v1',
+        };
 
+        const bodyErr = err as { type?: string };
         if (bodyErr?.type === 'entity.parse.failed') {
-            res.status(400).json({ status: 'error', code: 'invalid_json', error: 'Request body is not valid JSON.', request_id: requestId });
+            const code = 'invalid_json';
+            const message = 'Request body is not valid JSON.';
+            res.status(400).json({
+                success: false,
+                status: 'error',
+                code,
+                message,
+                error: { code, message, details: null },
+                request_id: requestId,
+                meta,
+            });
             return;
         }
+
         if (bodyErr?.type === 'entity.too.large') {
-            res.status(413).json({ status: 'error', code: 'payload_too_large', error: 'Request body is too large.', request_id: requestId });
+            const code = 'payload_too_large';
+            const message = 'Request body is too large.';
+            res.status(413).json({
+                success: false,
+                status: 'error',
+                code,
+                message,
+                error: { code, message, details: null },
+                request_id: requestId,
+                meta,
+            });
             return;
         }
+
         if (err instanceof AppError) {
             (req.log ?? logger)[err.status >= 500 ? 'error' : 'info']({ code: err.code, details: err.details }, err.message);
-            res.status(err.status).json({ status: 'error', code: err.code, error: err.message, details: err.details, request_id: requestId });
+            res.status(err.status).json({
+                success: false,
+                status: 'error',
+                code: err.code,
+                message: err.message,
+                error: {
+                    code: err.code,
+                    message: err.message,
+                    details: err.details ?? null,
+                },
+                details: err.details ?? null,
+                request_id: requestId,
+                meta,
+            });
             return;
         }
 
         (req.log ?? logger).error({ err }, 'unhandled error');
-        res.status(500).json({ status: 'error', code: 'internal_error', error: 'Internal server error.', request_id: requestId });
+        const code = 'internal_error';
+        const message = 'Internal server error.';
+        res.status(500).json({
+            success: false,
+            status: 'error',
+            code,
+            message,
+            error: { code, message, details: null },
+            request_id: requestId,
+            meta,
+        });
     });
 
     return app;

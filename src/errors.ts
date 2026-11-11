@@ -28,6 +28,13 @@ export class SLAViolationError extends AppError {
     }
 }
 
+/** 499 — the client closed the connection before the upstream response completed. */
+export class ClientCancelledError extends AppError {
+    constructor(message = 'Client closed connection before completion.', details?: unknown) {
+        super(499, 'client_cancelled', message, details);
+    }
+}
+
 /** 502 — the upstream model provider failed after all failover attempts. */
 export class UpstreamError extends AppError {
     constructor(message: string, details?: unknown) {

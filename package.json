@@ -1,12 +1,13 @@
 {
   "name": "carbonroute-proxy",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Sustainable Generative AI Inference Routing Proxy & Telemetry Engine",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
