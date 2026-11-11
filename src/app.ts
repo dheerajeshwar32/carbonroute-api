@@ -13,6 +13,7 @@ import type { TelemetrySource } from './telemetry';
 import { cacheKey, ResponseCache } from './cache';
 import type { InferenceProvider } from './inference';
 import { buildInferenceSchema, formatIssues } from './validation';
+import { openApiSpec } from './openapi';
 
 export interface AppDeps {
     config: AppConfig;
@@ -191,6 +192,12 @@ export function createApp({ config, telemetry, cache, inference, logger }: AppDe
             cache: cache.status(),
             telemetry: telemetry.status(),
         });
+    });
+
+    // --- OpenAPI 3.1 Spec -----------------------------------------------------
+    app.get('/api/v1/openapi.json', (_req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.json(openApiSpec);
     });
 
     // --- Live region telemetry -------------------------------------------------

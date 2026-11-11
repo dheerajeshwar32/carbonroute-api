@@ -48,23 +48,36 @@ describe('API Gateway Endpoints', () => {
         expect(res.body.telemetry.region_count).toBe(5);
     });
 
-    it('GET /api/v1/regions returns full region telemetry snapshots without undefined fields', async () => {
+    it('GET /api/v1/openapi.json returns valid OpenAPI 3.1 specification', async () => {
+        const res = await request(app).get('/api/v1/openapi.json');
+        expect(res.status).toBe(200);
+        expect(res.body.openapi).toBe('3.1.0');
+        expect(res.body.info.title).toContain('CarbonRoute');
+        expect(res.body.paths['/api/v1/inference']).toBeDefined();
+        expect(res.body.paths['/api/v1/regions']).toBeDefined();
+        expect(res.body.paths['/health']).toBeDefined();
+    });
+
+    it('GET /api/v1/regions verifies synchronous cold-boot hydration with complete metadata', async () => {
         const res = await request(app).get('/api/v1/regions');
         expect(res.status).toBe(200);
         expect(res.body.success).toBe(true);
         expect(res.body.status).toBe('success');
         expect(res.body.regions).toHaveLength(5);
 
-        const first = res.body.regions[0];
-        expect(first.id).toBeDefined();
-        expect(first.location).toBeDefined();
-        expect(first.latency_source).toBeDefined();
-        expect(first.carbon_source).toBeDefined();
-        expect(first.latency_updated_at).toBeDefined();
-        expect(first.carbon_updated_at).toBeDefined();
+        for (const region of res.body.regions) {
+            expect(region.id).toBeDefined();
+            expect(region.location).toBeDefined();
+            expect(['measured', 'fallback', 'static_baseline']).toContain(region.latency_source);
+            expect(['live', 'fallback', 'static_baseline']).toContain(region.carbon_source);
+            expect(region.latency_updated_at).toBeDefined();
+            expect(region.carbon_updated_at).toBeDefined();
+            expect(region.carbon_intensity).toBeGreaterThan(0);
+            expect(region.latency_ms).toBeGreaterThan(0);
+        }
     });
 
-    it('POST /api/v1/inference returns unified success envelope and routes compute', async () => {
+    it('POST /api/v1/inference returns unified success envelope and normalizes simplex weights', async () => {
         const payload = {
             prompt: 'Test green routing verification prompt',
             model: 'gemini-3.8-flash',
@@ -85,6 +98,8 @@ describe('API Gateway Endpoints', () => {
         expect(res.body.telemetry).toBeDefined();
         expect(res.body.impact).toBeDefined();
         expect(res.body.routing).toBeDefined();
+        expect(res.body.routing.policy.carbon_weight).toBe(0.8);
+        expect(res.body.routing.policy.cost_weight).toBe(0.1);
         expect(res.body.routing.policy.latency_weight).toBe(0.1);
         expect(res.body.cache_hit).toBe(false);
     });
@@ -105,6 +120,25 @@ describe('API Gateway Endpoints', () => {
         expect(res2.body.cache_hit).toBe(true);
         expect(res2.body.routed_to).toBe('cache');
         expect(res2.body.telemetry.live_carbon_intensity).toBe(0);
+    });
+
+    it('POST /api/v1/inference rejects zero-weight degeneracy with 400 validation error', async () => {
+        const payload = {
+            prompt: 'Test zero weight payload',
+            sla: {
+                max_latency_ms: 200,
+                carbon_priority_weight: 0,
+                cost_priority_weight: 0,
+                latency_priority_weight: 0,
+            },
+        };
+
+        const res = await request(app).post('/api/v1/inference').send(payload);
+        expect(res.status).toBe(400);
+        expect(res.body.success).toBe(false);
+        expect(res.body.code).toBe('invalid_request');
+        expect(res.body.details).toBeInstanceOf(Array);
+        expect(res.body.details[0].message).toContain('At least one priority weight must be greater than zero');
     });
 
     it('POST /api/v1/inference returns 400 with structured validation issues for bad payload', async () => {
@@ -134,5 +168,15 @@ describe('API Gateway Endpoints', () => {
         expect(res.body.success).toBe(false);
         expect(res.body.code).toBe('sla_unsatisfiable');
         expect(res.body.error.message).toContain('No available region satisfies the latency SLA constraint');
+    });
+
+    it('404 catch-all returns unified JSON error envelope', async () => {
+        const res = await request(app).get('/api/v1/nonexistent-route');
+        expect(res.status).toBe(404);
+        expect(res.body.success).toBe(false);
+        expect(res.body.status).toBe('error');
+        expect(res.body.code).toBe('not_found');
+        expect(res.body.error.code).toBe('not_found');
+        expect(res.body.meta.request_id).toBeDefined();
     });
 });

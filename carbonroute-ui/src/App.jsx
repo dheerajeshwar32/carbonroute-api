@@ -8,6 +8,9 @@ import { AlertBanner } from './components/AlertBanner';
 import { SkeletonLoader } from './components/SkeletonLoader';
 import { TelemetryStats } from './components/TelemetryStats';
 import { CandidatesTable } from './components/CandidatesTable';
+import { SessionLedgerBar } from './components/SessionLedgerBar';
+import { CopyRequestIdBadge } from './components/CopyRequestIdBadge';
+import { useSessionLedger } from './hooks/useSessionLedger';
 
 export function App() {
   const [prompt, setPrompt] = useState('');
@@ -26,6 +29,9 @@ export function App() {
   const [health, setHealth] = useState(null);
   const [globalRegions, setGlobalRegions] = useState([]);
   const [isPolling, setIsPolling] = useState(false);
+
+  // Persistent Session Carbon Ledger
+  const { ledger, recordRoutingEvent, resetLedger, exportTelemetryJson } = useSessionLedger();
 
   const abortControllerRef = useRef(null);
 
@@ -129,10 +135,11 @@ export function App() {
       } else {
         setResult(data);
         setError(null);
+        // Record into persistent session ledger
+        recordRoutingEvent(data, prompt.trim());
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        // User voluntarily cancelled the request
         return;
       }
       setError({
@@ -160,6 +167,13 @@ export function App() {
 
         {/* Global Live Regions Drawer */}
         <GlobalRegionsDrawer regions={globalRegions} />
+
+        {/* Session Impact Ledger Summary Bar */}
+        <SessionLedgerBar
+          ledger={ledger}
+          onExport={exportTelemetryJson}
+          onReset={resetLedger}
+        />
 
         {/* Workload Submission & SLA Config */}
         <div className="glass-panel input-card spring-enter">
@@ -235,8 +249,11 @@ export function App() {
             {/* Inference Output Card */}
             <div className="glass-panel output-card spring-enter">
               <div className="output-header">
-                <div className="stat-category" style={{ margin: 0 }}>
-                  Inference Completion
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div className="stat-category" style={{ margin: 0 }}>
+                    Inference Completion
+                  </div>
+                  <CopyRequestIdBadge requestId={result.meta?.request_id || result.request_id} />
                 </div>
                 {result.usage && (
                   <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>

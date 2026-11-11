@@ -7,48 +7,50 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-backend:
+  backend-gateway:
+    name: Backend Gateway CI
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Use Node.js 22.x
-      uses: actions/setup-node@v3
-      with:
-        node-version: 22.x
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
 
-    - name: Install Dependencies
-      run: npm ci
+      - name: Install Dependencies
+        run: npm ci
 
-    - name: Build Proxy
-      run: npm run build
+      - name: Typecheck TypeScript
+        run: npx tsc --noEmit
 
-    - name: Run Tests
-      run: npx vitest run
+      - name: Run Vitest Suite
+        run: npm test
 
-    - name: Build Docker Image
-      run: docker build -t carbonroute-proxy .
+      - name: Compile Dist Build
+        run: npm run build
 
-  build-frontend:
+  frontend-client:
+    name: Frontend Monorepo Client CI
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Use Node.js 22.x
-      uses: actions/setup-node@v3
-      with:
-        node-version: 22.x
-        cache: 'npm'
-        cache-dependency-path: carbonroute-ui/package-lock.json
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: carbonroute-ui/package-lock.json
 
-    - name: Install Dependencies
-      run: npm ci
-      working-directory: ./carbonroute-ui
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: ./carbonroute-ui
 
-    - name: Build UI
-      run: npm run build
-      working-directory: ./carbonroute-ui
+      - name: Build Frontend Client
+        run: npm run build
+        working-directory: ./carbonroute-ui
