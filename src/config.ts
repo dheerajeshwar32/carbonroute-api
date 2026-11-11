@@ -27,7 +27,7 @@ const EnvSchema = z.object({
     DEFAULT_MODEL: z.string().default('gemini-3.8-flash'),
     ALLOWED_MODELS: z.string().default('gemini-3.8-flash,gemini-3.5-flash-lite,gemini-3.5-flash').transform(csv),
     MAX_PROMPT_CHARS: z.coerce.number().int().positive().default(4000),
-    INFERENCE_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+    INFERENCE_TIMEOUT_MS: z.coerce.number().int().positive().default(25_000),
     MAX_FAILOVER_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(2),
 
     // --- Cache -------------------------------------------------------------
@@ -77,6 +77,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     }
 
     const cfg = parsed.data;
+
+    // Hardened timeout safeguard: minimum 15,000ms floor prevents premature 504 DEADLINE_EXCEEDED
+    cfg.INFERENCE_TIMEOUT_MS = Math.max(15_000, cfg.INFERENCE_TIMEOUT_MS);
 
     let resolvedInferenceMode: 'regional' | 'global';
     if (cfg.INFERENCE_MODE === 'regional') {

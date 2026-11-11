@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './App.css';
 
 import { Header } from './components/Header';
@@ -11,6 +11,67 @@ import { CandidatesTable } from './components/CandidatesTable';
 import { SessionLedgerBar } from './components/SessionLedgerBar';
 import { CopyRequestIdBadge } from './components/CopyRequestIdBadge';
 import { useSessionLedger } from './hooks/useSessionLedger';
+
+/**
+ * 1:1 mathematical parity with carbonroute-proxy/src/scheduler.ts
+ * Projects the optimal candidate region from live telemetry and active SLA weights.
+ */
+export function computeLiveRegionProjection(regions, sla) {
+  if (!regions || !Array.isArray(regions) || regions.length === 0) return null;
+
+  // 1. Hard SLA filter: drop regions where latency exceeds limit
+  const eligible = regions.filter((r) => r.latency_ms <= sla.max_latency_ms);
+  if (eligible.length === 0) return null;
+
+  // 2. Weight validation & simplex normalization
+  const rawCarbon = sla.carbon_priority_weight ?? 0.5;
+  const rawCost = sla.cost_priority_weight ?? 0.35;
+  const rawLatency = sla.latency_priority_weight ?? 0.15;
+  const total = rawCarbon + rawCost + rawLatency;
+  if (total <= 0) return null;
+
+  const wCarbonNorm = rawCarbon / total;
+  const wCostNorm = rawCost / total;
+  const wLatencyNorm = rawLatency / total;
+
+  // 3. Extrema
+  const minCost = Math.min(...eligible.map((r) => r.cost_per_1k_tokens ?? 0.00015));
+  const maxCost = Math.max(...eligible.map((r) => r.cost_per_1k_tokens ?? 0.00015));
+
+  const minCarbon = Math.min(...eligible.map((r) => r.carbon_intensity));
+  const maxCarbon = Math.max(...eligible.map((r) => r.carbon_intensity));
+
+  const minLatency = Math.min(...eligible.map((r) => r.latency_ms));
+  const maxLatency = Math.max(...eligible.map((r) => r.latency_ms));
+
+  const MAX_REF_CARBON = 800;
+  const MAX_REF_COST = 0.005;
+  const maxRefLatency = Math.max(1, sla.max_latency_ms);
+
+  const scored = eligible.map((region) => {
+    const cost = region.cost_per_1k_tokens ?? 0.00015;
+    const carbon = region.carbon_intensity;
+    const latency = region.latency_ms;
+
+    const normCost = maxCost === minCost
+      ? Math.min(1, Math.max(0, cost / MAX_REF_COST))
+      : (cost - minCost) / (maxCost - minCost);
+
+    const normCarbon = maxCarbon === minCarbon
+      ? Math.min(1, Math.max(0, carbon / MAX_REF_CARBON))
+      : (carbon - minCarbon) / (maxCarbon - minCarbon);
+
+    const normLatency = maxLatency === minLatency
+      ? Math.min(1, Math.max(0, latency / maxRefLatency))
+      : (latency - minLatency) / (maxLatency - minLatency);
+
+    const score = (wCostNorm * normCost) + (wCarbonNorm * normCarbon) + (wLatencyNorm * normLatency);
+    return { id: region.id, score };
+  });
+
+  scored.sort((a, b) => a.score - b.score);
+  return scored[0]?.id ?? null;
+}
 
 export function App() {
   const [prompt, setPrompt] = useState('');
@@ -34,6 +95,7 @@ export function App() {
   const { ledger, recordRoutingEvent, resetLedger, exportTelemetryJson } = useSessionLedger();
 
   const abortControllerRef = useRef(null);
+  const lastSubmittedPromptRef = useRef('');
 
   // Derive API endpoint URL cleanly
   const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -41,6 +103,16 @@ export function App() {
     : import.meta.env.DEV
     ? 'http://localhost:3000'
     : 'https://carbonroute-ipqv.onrender.com';
+
+  // Live client-side optimal region projection
+  const projectedOptimalId = useMemo(() => {
+    return computeLiveRegionProjection(globalRegions, {
+      max_latency_ms: maxLatency,
+      carbon_priority_weight: carbonWeight / 100,
+      cost_priority_weight: costWeight / 100,
+      latency_priority_weight: latencyWeight / 100,
+    });
+  }, [globalRegions, maxLatency, carbonWeight, costWeight, latencyWeight]);
 
   // Proactive background telemetry polling (every 15 seconds)
   const pollGateway = useCallback(async () => {
@@ -90,8 +162,13 @@ export function App() {
 
   // Dispatch inference request
   const handleRouteRequest = async (e) => {
-    e.preventDefault();
-    if (!prompt.trim() || loading) return;
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
+    const currentPrompt = prompt.trim() || lastSubmittedPromptRef.current;
+    if (!currentPrompt || loading) return;
+
+    lastSubmittedPromptRef.current = currentPrompt;
 
     // Cancel any previous in-flight request
     if (abortControllerRef.current) {
@@ -110,7 +187,7 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          prompt: prompt.trim(),
+          prompt: currentPrompt,
           model: 'gemini-3.8-flash',
           sla: {
             max_latency_ms: maxLatency,
@@ -136,7 +213,7 @@ export function App() {
         setResult(data);
         setError(null);
         // Record into persistent session ledger
-        recordRoutingEvent(data, prompt.trim());
+        recordRoutingEvent(data, currentPrompt);
       }
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -155,6 +232,16 @@ export function App() {
     }
   };
 
+  const handleRetry = () => {
+    const targetPrompt = prompt.trim() || lastSubmittedPromptRef.current;
+    if (targetPrompt) {
+      if (!prompt.trim()) setPrompt(targetPrompt);
+      setTimeout(() => {
+        void handleRouteRequest({ preventDefault: () => {} });
+      }, 0);
+    }
+  };
+
   return (
     <div className="app-wrapper">
       {/* Ambient Canvas Lighting */}
@@ -166,7 +253,11 @@ export function App() {
         <Header health={health} isPolling={isPolling} />
 
         {/* Global Live Regions Drawer */}
-        <GlobalRegionsDrawer regions={globalRegions} />
+        <GlobalRegionsDrawer
+          regions={globalRegions}
+          projectedOptimalId={projectedOptimalId}
+          maxLatencyMs={maxLatency}
+        />
 
         {/* Session Impact Ledger Summary Bar */}
         <SessionLedgerBar
@@ -224,7 +315,11 @@ export function App() {
         </div>
 
         {/* Alert Banner for SLA or API errors */}
-        <AlertBanner error={error} />
+        <AlertBanner
+          error={error}
+          onRetry={handleRetry}
+          onDismiss={() => setError(null)}
+        />
 
         {/* Shimmer Skeleton during computation */}
         {loading && <SkeletonLoader />}

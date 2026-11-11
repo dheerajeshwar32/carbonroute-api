@@ -5,7 +5,7 @@ import { createApp } from './app';
 import { loadConfig } from './config';
 import { MemoryCache } from './cache';
 import { getTelemetrySource } from './telemetry';
-import { InferenceProvider, InferenceResult } from './inference';
+import { InferenceProvider, InferenceResult, describeError } from './inference';
 
 describe('API Gateway Endpoints', () => {
     const config = loadConfig({
@@ -33,6 +33,29 @@ describe('API Gateway Endpoints', () => {
         cache,
         inference: mockInference,
         logger,
+    });
+
+    it('clamps INFERENCE_TIMEOUT_MS to a minimum of 15000ms with a default of 25000ms', () => {
+        const defaultConfig = loadConfig({});
+        expect(defaultConfig.INFERENCE_TIMEOUT_MS).toBe(25000);
+
+        const clampedConfig = loadConfig({ INFERENCE_TIMEOUT_MS: '2000' });
+        expect(clampedConfig.INFERENCE_TIMEOUT_MS).toBe(15000);
+
+        const highConfig = loadConfig({ INFERENCE_TIMEOUT_MS: '45000' });
+        expect(highConfig.INFERENCE_TIMEOUT_MS).toBe(45000);
+    });
+
+    it('describeError parses raw Google GenAI 504 DEADLINE_EXCEEDED JSON into human-readable message', () => {
+        const rawJsonError = new Error(
+            '[GoogleGenAI Error]: {"error":{"code":504,"message":"Deadline expired before operation could complete.","status":"DEADLINE_EXCEEDED"}}'
+        );
+        const parsed = describeError(rawJsonError);
+        expect(parsed.status).toBe(504);
+        expect(parsed.code).toBe('DEADLINE_EXCEEDED');
+        expect(parsed.message).toBe(
+            'Upstream Gemini model timed out (504 DEADLINE_EXCEEDED). The gateway automatically attempted regional failover — please retry.'
+        );
     });
 
     it('GET /health returns unified envelope with uptime and dependency statuses', async () => {

@@ -1,5 +1,7 @@
 import React, { memo } from 'react';
 
+const calcPct = (val, min, max) => Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+
 export const SLAControls = memo(function SLAControls({
   maxLatency,
   setMaxLatency,
@@ -33,6 +35,11 @@ export const SLAControls = memo(function SLAControls({
     setActivePreset('custom');
     setter(val);
   };
+
+  const maxLatencyPct = calcPct(maxLatency, 50, 500);
+  const carbonWeightPct = calcPct(carbonWeight, 0, 100);
+  const costWeightPct = calcPct(costWeight, 0, 100);
+  const latencyWeightPct = calcPct(latencyWeight, 0, 100);
 
   return (
     <div className="sla-section">
@@ -81,6 +88,7 @@ export const SLAControls = memo(function SLAControls({
             value={maxLatency}
             onChange={(e) => setMaxLatency(Number(e.target.value))}
             className="apple-slider"
+            style={{ '--slider-pct': `${maxLatencyPct}%` }}
           />
         </div>
 
@@ -97,6 +105,7 @@ export const SLAControls = memo(function SLAControls({
             value={carbonWeight}
             onChange={(e) => handleCustomChange(setCarbonWeight, Number(e.target.value))}
             className="apple-slider"
+            style={{ '--slider-pct': `${carbonWeightPct}%` }}
           />
         </div>
 
@@ -113,6 +122,7 @@ export const SLAControls = memo(function SLAControls({
             value={costWeight}
             onChange={(e) => handleCustomChange(setCostWeight, Number(e.target.value))}
             className="apple-slider"
+            style={{ '--slider-pct': `${costWeightPct}%` }}
           />
         </div>
 
@@ -129,6 +139,7 @@ export const SLAControls = memo(function SLAControls({
             value={latencyWeight}
             onChange={(e) => handleCustomChange(setLatencyWeight, Number(e.target.value))}
             className="apple-slider"
+            style={{ '--slider-pct': `${latencyWeightPct}%` }}
           />
         </div>
       </div>

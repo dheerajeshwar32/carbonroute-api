@@ -3,6 +3,8 @@
    ========================================================================== */
 
 :root {
+  color-scheme: dark;
+
   /* Color Palette */
   --bg-canvas: #0B0F19;
   --bg-gradient-top: rgba(14, 165, 233, 0.08);
@@ -22,8 +24,8 @@
   --text-subtle: #475569;
 
   /* Apple Semantic Accents */
-  --accent-green: #10B981;
-  --accent-green-glow: rgba(16, 185, 129, 0.25);
+  --accent-green: #30D158;
+  --accent-green-glow: rgba(48, 209, 88, 0.25);
   --accent-blue: #38BDF8;
   --accent-blue-glow: rgba(56, 189, 248, 0.25);
   --accent-amber: #FBBF24;
@@ -58,6 +60,7 @@ html, body {
   font-family: var(--font-display);
   font-size: 15px;
   line-height: 1.5;
+  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -68,6 +71,26 @@ html, body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Apple HIG Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 /* Number stabilization */
