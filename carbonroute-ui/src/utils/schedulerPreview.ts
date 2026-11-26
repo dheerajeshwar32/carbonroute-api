@@ -1,4 +1,54 @@
-import type { RegionSnapshot, SLAConfigPayload } from '../types/contract';
+import type { RegionSnapshot, SLAConfigPayload, SLAPreset } from '../types/contract';
+
+export type PolicyObjective = 'carbon' | 'latency' | 'cost';
+
+const OBJECTIVE_ACCENT_CLASS: Record<PolicyObjective, string> = {
+  carbon: 'accent-mint',
+  latency: 'accent-sky',
+  cost: 'accent-slate',
+};
+
+const PRESET_DISPLAY_LABELS: Record<SLAPreset, string> = {
+  eco: 'Eco Max',
+  balanced: 'Balanced',
+  latency: 'Low Latency',
+  custom: 'Custom',
+};
+
+/**
+ * Resolves the dominant routing objective from normalized SLA priority weights.
+ */
+export function getDominantObjective(
+  carbonWeight: number,
+  costWeight: number,
+  latencyWeight: number
+): PolicyObjective {
+  const c = Math.max(0, carbonWeight);
+  const co = Math.max(0, costWeight);
+  const l = Math.max(0, latencyWeight);
+  const total = c + co + l;
+  if (total <= 0) return 'carbon';
+
+  const normCarbon = c / total;
+  const normCost = co / total;
+  const normLatency = l / total;
+
+  if (normLatency > normCarbon && normLatency >= normCost) {
+    return 'latency';
+  }
+  if (normCost > normCarbon && normCost > normLatency) {
+    return 'cost';
+  }
+  return 'carbon';
+}
+
+export function getObjectiveAccentClass(objective: PolicyObjective): string {
+  return OBJECTIVE_ACCENT_CLASS[objective];
+}
+
+export function formatPresetLabel(preset: SLAPreset): string {
+  return PRESET_DISPLAY_LABELS[preset];
+}
 
 /**
  * Intrinsic reference ceilings — aligned 1:1 with carbonroute-proxy/src/scheduler.ts

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeLiveRegionProjection,
+  formatPresetLabel,
+  getDominantObjective,
   scoreLiveRegions,
   DEFAULT_COST_PER_1K_TOKENS,
   MAX_REF_CARBON,
@@ -146,5 +148,14 @@ describe('schedulerPreview (1:1 Parity with Backend Scheduler)', () => {
         latency_priority_weight: 0,
       })
     ).toBeNull();
+  });
+
+  it('derives the dominant policy objective from normalized weights', () => {
+    expect(getDominantObjective(80, 15, 5)).toBe('carbon');
+    expect(getDominantObjective(50, 35, 15)).toBe('carbon');
+    expect(getDominantObjective(10, 20, 70)).toBe('latency');
+    expect(getDominantObjective(15, 70, 15)).toBe('cost');
+    expect(getDominantObjective(0, 0, 0)).toBe('carbon');
+    expect(formatPresetLabel('latency')).toBe('Low Latency');
   });
 });

@@ -1,5 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import type { ApiErrorFieldDetail, ClientErrorState, InferenceSuccessResponse } from '../types/contract';
+import type {
+  ApiErrorFieldDetail,
+  ClientErrorState,
+  InferenceSuccessResponse,
+  SLAPreset,
+} from '../types/contract';
+import {
+  formatPresetLabel,
+  getDominantObjective,
+  getObjectiveAccentClass,
+} from '../utils/schedulerPreview';
 import {
   Activity,
   AlertTriangle,
@@ -27,6 +37,10 @@ export interface ResponseCardProps {
   error: ClientErrorState | null;
   projectedOptimalId: string | null;
   maxLatency: number;
+  carbonWeight: number;
+  costWeight: number;
+  latencyWeight: number;
+  activePreset: SLAPreset;
   onSelectStarterPrompt: (prompt: string) => void;
   onRetry: () => void;
   onDismissError: () => void;
@@ -157,6 +171,10 @@ export function ResponseCard({
   error,
   projectedOptimalId,
   maxLatency,
+  carbonWeight,
+  costWeight,
+  latencyWeight,
+  activePreset,
   onSelectStarterPrompt,
   onRetry,
   onDismissError,
@@ -169,6 +187,36 @@ export function ResponseCard({
   const traceId = result?.meta?.request_id || result?.request_id || '';
   const candidates = result?.routing?.candidates ?? [];
   const isCache = Boolean(result?.cache_hit);
+
+  const liveObjective = getDominantObjective(carbonWeight, costWeight, latencyWeight);
+  const responseObjective = result?.routing?.policy
+    ? getDominantObjective(
+        result.routing.policy.carbon_weight,
+        result.routing.policy.cost_weight,
+        result.routing.policy.latency_weight
+      )
+    : liveObjective;
+  const liveObjectiveAccentClass = getObjectiveAccentClass(liveObjective);
+  const responseObjectiveAccentClass = getObjectiveAccentClass(responseObjective);
+  const responsePolicyModifier = `policy-${responseObjective}`;
+
+  const impact = result?.impact;
+  const avoidedPct = impact?.carbon_saved_pct ?? 0;
+  const baselineRegionId = impact?.baseline_region || result?.routing?.baseline_region || '';
+  const maxCandidateCarbon =
+    candidates.length > 0 ? Math.max(...candidates.map((c) => c.carbon_intensity)) : null;
+  const isWorstCarbonRegion =
+    Boolean(result && !isCache) &&
+    ((baselineRegionId !== '' && result?.routed_to === baselineRegionId) ||
+      (maxCandidateCarbon !== null &&
+        (result?.telemetry.carbon_intensity ?? 0) >= maxCandidateCarbon &&
+        candidates.some((c) => c.carbon_intensity < maxCandidateCarbon)));
+  const hasPositiveCarbonSavings =
+    Boolean(impact) && avoidedPct > 0 && !isWorstCarbonRegion;
+
+  const emissionsVal = impact?.estimated_emissions_g;
+  const avoidedVal = impact?.estimated_emissions_avoided_g;
+  const hasPositiveAvoided = typeof avoidedVal === 'number' && avoidedVal > 0;
 
   return (
     <section className="response-area" aria-label="Inference routing response">
@@ -242,7 +290,7 @@ export function ResponseCard({
           aria-label="Routing inference workload"
         >
           <div className="loading-status-line">
-            <Activity size={14} className="accent-mint" />
+            <Activity size={14} className={liveObjectiveAccentClass} />
             <span>
               Routing via projected optimal node:{' '}
               <strong className="mono-tabular text-primary">
@@ -296,11 +344,11 @@ export function ResponseCard({
                 {isCache ? (
                   <span className="breadcrumb-target accent-sky mono-tabular">
                     <Zap size={13} />
-                    <span>Edge Cache · 0.000 gCO₂e</span>
+                    <span>Edge Cache · 0.0000 gCO₂e</span>
                   </span>
                 ) : (
                   <span className="breadcrumb-target mono-tabular">
-                    <Activity size={13} className="accent-mint" />
+                    <Activity size={13} className={responseObjectiveAccentClass} />
                     <span>
                       {result.routed_to} ({result.location}) · {result.telemetry.carbon_intensity} gCO₂e/kWh
                     </span>
@@ -309,11 +357,15 @@ export function ResponseCard({
               </div>
 
               <div className="breadcrumb-badges">
-                {result.impact && (
-                  <span className="savings-pill mono-tabular">
-                    -{result.impact.carbon_saved_pct}% vs.{' '}
-                    {result.impact.baseline_location || result.impact.baseline_region}
-                  </span>
+                {impact && (
+                  hasPositiveCarbonSavings ? (
+                    <span className="savings-pill mono-tabular">
+                      -{impact.carbon_saved_pct}% vs.{' '}
+                      {impact.baseline_location || impact.baseline_region}
+                    </span>
+                  ) : (
+                    <span className="baseline-pill">Lowest Latency · Carbon Baseline</span>
+                  )
                 )}
                 <span className="model-badge mono-tabular">{result.model}</span>
               </div>
@@ -324,7 +376,7 @@ export function ResponseCard({
               <MarkdownRenderer content={result.data} />
             </div>
 
-            {/* Bottom Apple Activity Telemetry Bento Strip & Capsule Actions */}
+            {/* Bottom Apple Activity Telemetry Bento Strip & Capsule Footer */}
             <div className="response-footer">
               <div className="telemetry-strip">
                 <div className="telemetry-stat">
@@ -337,18 +389,18 @@ export function ResponseCard({
                 <div className="telemetry-stat">
                   <span className="telemetry-stat-label">Emissions</span>
                   <span className="telemetry-stat-val mono-tabular">
-                    {result.impact ? `${result.impact.estimated_emissions_g} gCO₂e` : '—'}
+                    {typeof emissionsVal === 'number' ? `${emissionsVal.toFixed(4)} gCO₂e` : '—'}
                   </span>
                 </div>
 
                 <div className="telemetry-stat">
                   <span className="telemetry-stat-label">Avoided</span>
                   <span
-                    className={`telemetry-stat-val mono-tabular${
-                      result.impact ? ' accent-mint' : ''
+                    className={`telemetry-stat-val mono-tabular ${
+                      hasPositiveAvoided ? 'accent-mint' : 'text-secondary'
                     }`}
                   >
-                    {result.impact ? `${result.impact.estimated_emissions_avoided_g} gCO₂e` : '—'}
+                    {typeof avoidedVal === 'number' ? `${avoidedVal.toFixed(4)} gCO₂e` : '—'}
                   </span>
                 </div>
 
@@ -365,20 +417,27 @@ export function ResponseCard({
               </div>
 
               <div className="footer-actions">
-                <ActionCopyButton
-                  value={result.data}
-                  label="Copy Output"
-                  copiedLabel="Copied"
-                  ariaLabel="Copy inference response text"
-                />
-                {traceId && (
+                <span className="footer-policy-caption">
+                  Selected via {formatPresetLabel(activePreset)} policy ·{' '}
+                  {isCache ? 'Edge Cache' : 'Regional Execution'}
+                </span>
+
+                <div className="footer-action-buttons">
                   <ActionCopyButton
-                    value={traceId}
-                    label={`Trace ${traceId.slice(0, 8)}`}
-                    copiedLabel="Trace Copied"
-                    ariaLabel={`Copy request trace ID ${traceId}`}
+                    value={result.data}
+                    label="Copy Output"
+                    copiedLabel="Copied"
+                    ariaLabel="Copy inference response text"
                   />
-                )}
+                  {traceId && (
+                    <ActionCopyButton
+                      value={traceId}
+                      label={`Trace ${traceId.slice(0, 8)}`}
+                      copiedLabel="Trace Copied"
+                      ariaLabel={`Copy request trace ID ${traceId}`}
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -427,7 +486,7 @@ export function ResponseCard({
                                 : 'accent-coral';
 
                           return (
-                            <tr key={c.id} className={isSelected ? 'row-selected' : ''}>
+                            <tr key={c.id} className={isSelected ? `row-selected ${responsePolicyModifier}` : ''}>
                               <th scope="row" className="matrix-region-cell">
                                 <span className="matrix-loc">{c.location}</span>
                                 <span className="matrix-id mono-tabular">{c.id}</span>
@@ -446,7 +505,7 @@ export function ResponseCard({
                               </td>
                               <td>
                                 {isSelected ? (
-                                  <span className="status-tag tag-selected">Selected</span>
+                                  <span className={`status-tag tag-selected ${responsePolicyModifier}`}>Selected</span>
                                 ) : isExcluded ? (
                                   <span className="status-tag tag-breach" title={c.excluded_reason || 'SLA breached'}>
                                     SLA Breach

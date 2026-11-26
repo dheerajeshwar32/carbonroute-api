@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 import type { RegionSnapshot } from '../types/contract';
-import { scoreLiveRegions } from '../utils/schedulerPreview';
+import {
+  getDominantObjective,
+  getObjectiveAccentClass,
+  scoreLiveRegions,
+} from '../utils/schedulerPreview';
 import { Activity } from './Icons';
 
 export interface TelemetryRailProps {
@@ -73,6 +77,13 @@ export function TelemetryRail({
     return items;
   }, [regions, maxLatency, carbonWeight, costWeight, latencyWeight]);
 
+  const dominantObjective = useMemo(
+    () => getDominantObjective(carbonWeight, costWeight, latencyWeight),
+    [carbonWeight, costWeight, latencyWeight]
+  );
+  const policyModifier = `policy-${dominantObjective}`;
+  const headerAccentClass = getObjectiveAccentClass(dominantObjective);
+
   const maxScaleMs = useMemo(() => {
     if (!regions || regions.length === 0) return Math.max(250, maxLatency);
     return Math.max(250, maxLatency, ...regions.map((r) => r.latency_ms));
@@ -92,7 +103,7 @@ export function TelemetryRail({
     <section className="surface-card telemetry-rail-card" aria-label="Global region telemetry and latency SLA">
       <div className="panel-header-row">
         <div className="panel-heading-group">
-          <Activity size={14} className="accent-mint" />
+          <Activity size={14} className={headerAccentClass} />
           <h2 className="panel-title">Grid &amp; Latency Envelope</h2>
         </div>
         <span className="panel-count-pill mono-tabular">{regions.length} zones</span>
@@ -146,7 +157,7 @@ export function TelemetryRail({
               return (
                 <li
                   key={region.id}
-                  className={`region-row ${isOptimal ? 'region-row-optimal' : ''} ${
+                  className={`region-row ${isOptimal ? `region-row-optimal ${policyModifier}` : ''} ${
                     isBreached ? 'region-row-breached' : ''
                   }`}
                 >
@@ -161,7 +172,7 @@ export function TelemetryRail({
                       <span className={`carbon-pill mono-tabular ${carbonClass}`}>
                         {carbon} gCO₂e/kWh
                       </span>
-                      {isOptimal && <span className="tag-optimal">OPTIMAL</span>}
+                      {isOptimal && <span className={`tag-optimal ${policyModifier}`}>OPTIMAL</span>}
                       {isBreached && <span className="tag-breach-muted">SLA BREACH</span>}
                     </div>
                   </div>
@@ -172,7 +183,7 @@ export function TelemetryRail({
                       <div
                         className={`latency-fill ${
                           isOptimal
-                            ? 'latency-fill-optimal'
+                            ? `latency-fill-optimal ${policyModifier}`
                             : isBreached
                               ? 'latency-fill-breached'
                               : ''

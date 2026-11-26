@@ -38,6 +38,7 @@ export function App() {
   const [costWeight, setCostWeight] = useState(35);
   const [latencyWeight, setLatencyWeight] = useState(15);
   const [activePreset, setActivePreset] = useState<SLAPreset>('balanced');
+  const [routedPreset, setRoutedPreset] = useState<SLAPreset>('balanced');
 
   // Background gateway telemetry
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -181,6 +182,7 @@ export function App() {
           setResult(null);
         } else {
           setResult(payload);
+          setRoutedPreset(activePreset);
           setError(null);
           recordRoutingEvent(payload, trimmed);
         }
@@ -205,7 +207,15 @@ export function App() {
         }
       }
     },
-    [selectedModel, maxLatency, carbonWeight, costWeight, latencyWeight, recordRoutingEvent]
+    [
+      selectedModel,
+      maxLatency,
+      carbonWeight,
+      costWeight,
+      latencyWeight,
+      activePreset,
+      recordRoutingEvent,
+    ]
   );
 
   const handleSelectStarterPrompt = useCallback(
@@ -262,6 +272,10 @@ export function App() {
               error={error}
               projectedOptimalId={projectedOptimalId}
               maxLatency={maxLatency}
+              carbonWeight={carbonWeight}
+              costWeight={costWeight}
+              latencyWeight={latencyWeight}
+              activePreset={routedPreset}
               onSelectStarterPrompt={handleSelectStarterPrompt}
               onRetry={handleRetry}
               onDismissError={handleDismissError}
