@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
+import http from 'node:http';
 import request from 'supertest';
 import pino from 'pino';
 import { createApp } from './app';
 import { loadConfig } from './config';
 import { MemoryCache } from './cache';
-import { getTelemetrySource } from './telemetry';
+import { TelemetryService } from './telemetry';
 import { InferenceProvider, InferenceResult, describeError } from './inference';
 
 describe('API Gateway Endpoints', () => {
@@ -15,7 +16,7 @@ describe('API Gateway Endpoints', () => {
     });
     const logger = pino({ level: 'silent' });
     const cache = new MemoryCache();
-    const telemetry = getTelemetrySource();
+    const telemetry = new TelemetryService();
 
     const mockInference: InferenceProvider = {
         mode: 'global',
@@ -145,6 +146,124 @@ describe('API Gateway Endpoints', () => {
         expect(res2.body.telemetry.live_carbon_intensity).toBe(0);
     });
 
+    it('POST /api/v1/inference records failover metadata when executedRegion falls back to secondary candidate', async () => {
+        const failoverInference: InferenceProvider = {
+            mode: 'regional',
+            generate: vi.fn(async (): Promise<InferenceResult> => ({
+                text: 'Failover completion.',
+                executedRegion: 'europe-west4',
+                failover: [{
+                    region: 'europe-north1',
+                    status: 504,
+                    code: 'DEADLINE_EXCEEDED',
+                    error: 'Upstream Gemini model timed out (504 DEADLINE_EXCEEDED).',
+                }],
+                usage: { promptTokens: 10, outputTokens: 5 },
+            })),
+        };
+
+        const failoverApp = createApp({
+            config: loadConfig({ NODE_ENV: 'test', GOOGLE_CLOUD_PROJECT: 'test-proj' }),
+            telemetry: new TelemetryService(),
+            cache: new MemoryCache(),
+            inference: failoverInference,
+            logger,
+        });
+
+        const res = await request(failoverApp).post('/api/v1/inference').send({
+            prompt: 'Trigger failover reporting',
+            sla: { max_latency_ms: 300 },
+        });
+
+        expect(res.status).toBe(200);
+        expect(res.body.routed_to).toBe('europe-west4');
+        expect(res.body.routing.failover).toHaveLength(1);
+        expect(res.body.routing.failover[0].region).toBe('europe-north1');
+        expect(res.body.routing.failover[0].status).toBe(504);
+
+        const selectedRow = res.body.routing.candidates.find((c: { status: string }) => c.status === 'selected');
+        expect(selectedRow.id).toBe('europe-west4');
+    });
+
+    it('aborts upstream inference AbortSignal when client closes socket mid-request', async () => {
+        let capturedSignal: AbortSignal | undefined;
+        let inferenceStartedResolve!: () => void;
+        const inferenceStarted = new Promise<void>(resolve => {
+            inferenceStartedResolve = resolve;
+        });
+
+        const slowInference: InferenceProvider = {
+            mode: 'global',
+            generate: vi.fn((_m, _p, _c, signal) => {
+                capturedSignal = signal;
+                inferenceStartedResolve();
+                return new Promise<InferenceResult>((resolve, reject) => {
+                    signal?.addEventListener('abort', () => reject(new Error('aborted')));
+                    setTimeout(() => resolve({
+                        text: 'late',
+                        executedRegion: null,
+                        failover: [],
+                        usage: { promptTokens: 1, outputTokens: 1 },
+                    }), 2000);
+                });
+            }),
+        };
+
+        const cancelApp = createApp({
+            config,
+            telemetry: new TelemetryService(),
+            cache: new MemoryCache(),
+            inference: slowInference,
+            logger,
+        });
+
+        const server = http.createServer(cancelApp);
+        await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+
+        try {
+            const addr = server.address();
+            const port = typeof addr === 'object' && addr ? addr.port : 0;
+
+            const body = JSON.stringify({
+                prompt: 'Client abort propagation test prompt',
+                sla: { max_latency_ms: 300 },
+            });
+
+            const req = http.request({
+                hostname: '127.0.0.1',
+                port,
+                path: '/api/v1/inference',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(body),
+                },
+            });
+
+            req.on('error', () => { /* expected ECONNRESET on destroy */ });
+            req.write(body);
+            req.end();
+
+            await inferenceStarted;
+            expect(capturedSignal).toBeDefined();
+            expect(capturedSignal?.aborted).toBe(false);
+
+            const aborted = new Promise<void>(resolve => {
+                if (capturedSignal?.aborted) {
+                    resolve();
+                } else {
+                    capturedSignal?.addEventListener('abort', () => resolve(), { once: true });
+                }
+            });
+
+            req.destroy();
+            await aborted;
+            expect(capturedSignal?.aborted).toBe(true);
+        } finally {
+            await new Promise<void>(resolve => server.close(() => resolve()));
+        }
+    });
+
     it('POST /api/v1/inference rejects zero-weight degeneracy with 400 validation error', async () => {
         const payload = {
             prompt: 'Test zero weight payload',
@@ -166,7 +285,7 @@ describe('API Gateway Endpoints', () => {
 
     it('POST /api/v1/inference returns 400 with structured validation issues for bad payload', async () => {
         const payload = {
-            prompt: '', // empty prompt
+            prompt: '',
             sla: { max_latency_ms: -50 },
         };
 
@@ -183,7 +302,7 @@ describe('API Gateway Endpoints', () => {
     it('POST /api/v1/inference returns 422 when latency SLA is impossible', async () => {
         const payload = {
             prompt: 'Strict impossible latency test',
-            sla: { max_latency_ms: 10 }, // No region has latency <= 10ms
+            sla: { max_latency_ms: 10 },
         };
 
         const res = await request(app).post('/api/v1/inference').send(payload);

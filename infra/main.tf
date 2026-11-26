@@ -52,7 +52,28 @@ resource "aws_security_group" "carbonroute_sg" {
   }
 }
 
-# 2. IAM Permissions for Fargate
+# 2. Secrets Manager resources for secure secret injection
+resource "aws_secretsmanager_secret" "gemini_api_key" {
+  name        = "carbonroute/gemini-api-key"
+  description = "Google Gemini API Key for CarbonRoute inference"
+}
+
+resource "aws_secretsmanager_secret_version" "gemini_api_key" {
+  secret_id     = aws_secretsmanager_secret.gemini_api_key.id
+  secret_string = var.gemini_api_key
+}
+
+resource "aws_secretsmanager_secret" "redis_url" {
+  name        = "carbonroute/redis-url"
+  description = "Upstash Redis connection URL for CarbonRoute edge cache"
+}
+
+resource "aws_secretsmanager_secret_version" "redis_url" {
+  secret_id     = aws_secretsmanager_secret.redis_url.id
+  secret_string = var.redis_url
+}
+
+# 3. IAM Permissions for Fargate
 resource "aws_iam_role" "ecs_execution_role" {
   name = "carbonroute_ecs_execution_role"
   assume_role_policy = jsonencode({
@@ -70,7 +91,27 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# 3. ECS Cluster and Service Deployment
+# Grant the ECS execution role permission to read the secrets
+resource "aws_iam_role_policy" "ecs_secrets_access" {
+  name = "carbonroute-ecs-secrets-access"
+  role = aws_iam_role.ecs_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "secretsmanager:GetSecretValue"
+      ]
+      Resource = [
+        aws_secretsmanager_secret.gemini_api_key.arn,
+        aws_secretsmanager_secret.redis_url.arn
+      ]
+    }]
+  })
+}
+
+# 4. ECS Cluster and Service Deployment
 resource "aws_ecs_cluster" "carbonroute_cluster" {
   name = "carbonroute-cluster"
 }
@@ -91,14 +132,14 @@ resource "aws_ecs_task_definition" "carbonroute_task" {
       containerPort = 3000
       hostPort      = 3000
     }]
-    environment = [
+    secrets = [
       {
-        name  = "GEMINI_API_KEY"
-        value = var.gemini_api_key
+        name      = "GEMINI_API_KEY"
+        valueFrom = aws_secretsmanager_secret.gemini_api_key.arn
       },
       {
-        name  = "REDIS_URL"
-        value = var.redis_url
+        name      = "REDIS_URL"
+        valueFrom = aws_secretsmanager_secret.redis_url.arn
       }
     ]
   }])

@@ -1,6 +1,11 @@
-import React from 'react';
+import type { CandidateEvaluation } from '../types/contract';
 
-export function CandidatesTable({ candidates, maxLatency }) {
+export interface CandidatesTableProps {
+  candidates?: CandidateEvaluation[] | null;
+  maxLatency: number;
+}
+
+export function CandidatesTable({ candidates, maxLatency }: CandidatesTableProps) {
   if (!candidates || candidates.length === 0) return null;
 
   return (
@@ -14,13 +19,16 @@ export function CandidatesTable({ candidates, maxLatency }) {
 
       <div className="table-responsive">
         <table className="matrix-table">
+          <caption className="visually-hidden">
+            Multi-objective routing evaluation comparing latency, carbon intensity, composite score, and status per cloud region
+          </caption>
           <thead>
             <tr>
-              <th>Region</th>
-              <th>Roundtrip Latency</th>
-              <th>Carbon Intensity</th>
-              <th>Score</th>
-              <th>Dispatch Status</th>
+              <th scope="col">Region</th>
+              <th scope="col">Roundtrip Latency</th>
+              <th scope="col">Carbon Intensity</th>
+              <th scope="col">Score</th>
+              <th scope="col">Dispatch Status</th>
             </tr>
           </thead>
           <tbody>
@@ -31,10 +39,10 @@ export function CandidatesTable({ candidates, maxLatency }) {
 
               return (
                 <tr key={c.id} className={isSelected ? 'selected-row' : ''}>
-                  <td>
+                  <th scope="row" style={{ fontWeight: 400, textAlign: 'left' }}>
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.location}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{c.id}</div>
-                  </td>
+                  </th>
 
                   <td className="tabular-numbers">
                     <span style={{ color: isLatencyViolated ? 'var(--accent-red)' : 'inherit' }}>
@@ -43,8 +51,16 @@ export function CandidatesTable({ candidates, maxLatency }) {
                   </td>
 
                   <td className="tabular-numbers">
-                    <span style={{ color: c.carbon_intensity < 150 ? 'var(--accent-green)' : c.carbon_intensity < 300 ? 'var(--accent-amber)' : 'var(--accent-red)' }}>
-                      {c.carbon_intensity} gCO₂/kWh
+                    <span
+                      style={{
+                        color: c.carbon_intensity < 150
+                          ? 'var(--accent-green)'
+                          : c.carbon_intensity < 300
+                          ? 'var(--accent-amber)'
+                          : 'var(--accent-red)',
+                      }}
+                    >
+                      {c.carbon_intensity} gCO₂e/kWh
                     </span>
                   </td>
 

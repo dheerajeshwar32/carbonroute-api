@@ -51,6 +51,14 @@ jobs:
         run: npm ci
         working-directory: ./carbonroute-ui
 
+      - name: Typecheck Frontend TypeScript
+        run: npx tsc --noEmit
+        working-directory: ./carbonroute-ui
+
+      - name: Run Frontend Unit Tests
+        run: npm test
+        working-directory: ./carbonroute-ui
+
       - name: Build Frontend Client
         run: npm run build
         working-directory: ./carbonroute-ui

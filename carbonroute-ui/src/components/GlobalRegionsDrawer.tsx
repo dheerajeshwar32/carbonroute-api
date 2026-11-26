@@ -1,30 +1,44 @@
-import React, { useState } from 'react';
+import { useId, useState } from 'react';
+import type { RegionSnapshot } from '../types/contract';
 
-export function GlobalRegionsDrawer({ regions, projectedOptimalId, maxLatencyMs }) {
+export interface GlobalRegionsDrawerProps {
+  regions: RegionSnapshot[];
+  projectedOptimalId: string | null;
+  maxLatencyMs: number;
+}
+
+export function GlobalRegionsDrawer({
+  regions,
+  projectedOptimalId,
+  maxLatencyMs,
+}: GlobalRegionsDrawerProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const panelId = useId();
 
   if (!regions || regions.length === 0) {
     return null;
   }
 
   return (
-    <div className="glass-panel regions-drawer spring-enter">
-      <div className="drawer-header" onClick={() => setIsOpen(!isOpen)}>
+    <section className="glass-panel regions-drawer spring-enter" aria-label="Global cloud regions telemetry">
+      <button
+        type="button"
+        className="drawer-header"
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
         <div className="drawer-title">
           <span>Global Compute Telemetry</span>
           <span className="drawer-count-badge">{regions.length} Active Regions</span>
         </div>
-        <button
-          type="button"
-          className="drawer-toggle-btn"
-          aria-label={isOpen ? 'Collapse drawer' : 'Expand drawer'}
-        >
+        <span className="drawer-toggle-indicator" aria-hidden="true">
           {isOpen ? 'Hide Grid ▲' : 'Show Grid ▼'}
-        </button>
-      </div>
+        </span>
+      </button>
 
       {isOpen && (
-        <div className="regions-grid">
+        <div id={panelId} className="regions-grid">
           {regions.map((r) => {
             const carbon = r.carbon_intensity;
             const carbonClass = carbon < 150 ? '' : carbon < 300 ? 'mid' : 'high';
@@ -47,7 +61,7 @@ export function GlobalRegionsDrawer({ regions, projectedOptimalId, maxLatencyMs 
                 <div className="tile-id">{r.id}</div>
                 <div className="tile-meta tabular-numbers">
                   <span className={`tile-carbon ${carbonClass}`}>
-                    {carbon} <span style={{ fontSize: '10px', opacity: 0.85, fontWeight: 400 }}>gCO₂/kWh</span>
+                    {carbon} <span style={{ fontSize: '10px', opacity: 0.85, fontWeight: 400 }}>gCO₂e/kWh</span>
                   </span>
                   <span className="tile-lat">{r.latency_ms} ms</span>
                 </div>
@@ -56,6 +70,6 @@ export function GlobalRegionsDrawer({ regions, projectedOptimalId, maxLatencyMs 
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }

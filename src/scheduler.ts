@@ -1,5 +1,6 @@
 import { RegionSnapshot } from './regions';
 import { SLAViolationError } from './errors';
+import { round } from './utils/math';
 
 export interface SLAConfig {
     max_latency_ms: number;
@@ -34,11 +35,6 @@ export interface RoutingDecision {
     ranked: Candidate[];
     excluded: ExcludedRegion[];
 }
-
-const round = (val: number, digits = 4): number => {
-    const factor = 10 ** digits;
-    return Math.round(val * factor) / factor;
-};
 
 // Intrinsic reference ceilings for single-candidate or zero-variance dimensions
 const MAX_REF_CARBON = 800; // gCO2e/kWh (upper threshold for dirtiest coal grids)

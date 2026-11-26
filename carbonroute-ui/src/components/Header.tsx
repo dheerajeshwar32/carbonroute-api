@@ -1,7 +1,12 @@
-import React from 'react';
 import { LogoMark } from './LogoMark';
+import type { HealthResponse } from '../types/contract';
 
-export function Header({ health, isPolling }) {
+export interface HeaderProps {
+  health: HealthResponse | null;
+  isPolling: boolean;
+}
+
+export function Header({ health, isPolling }: HeaderProps) {
   const isHealthy = health?.status === 'ok' || health?.success === true;
   const isOffline = health === null;
 
@@ -18,9 +23,10 @@ export function Header({ health, isPolling }) {
         </div>
       </div>
 
-      <div className="status-pill">
+      <div className="status-pill" aria-label="Gateway connectivity status">
         <span
           className={`status-dot ${isOffline ? 'offline' : isHealthy ? '' : 'degraded'}`}
+          aria-hidden="true"
           title={isOffline ? 'Gateway unreachable' : `Gateway running (${health?.execution_mode || 'online'})`}
         />
         <span>
@@ -30,7 +36,11 @@ export function Header({ health, isPolling }) {
             ? `gateway active • ${health?.execution_mode || 'simulated'}`
             : 'connecting...'}
         </span>
-        {isPolling && <span style={{ opacity: 0.5, fontSize: '10px' }}>↻</span>}
+        {isPolling && (
+          <span aria-hidden="true" style={{ opacity: 0.5, fontSize: '10px' }}>
+            ↻
+          </span>
+        )}
       </div>
     </header>
   );

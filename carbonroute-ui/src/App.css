@@ -117,6 +117,13 @@
 }
 
 .drawer-header {
+  width: 100%;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -144,11 +151,8 @@
   color: var(--text-primary);
 }
 
-.drawer-toggle-btn {
-  background: none;
-  border: none;
+.drawer-toggle-indicator {
   color: var(--text-secondary);
-  cursor: pointer;
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -156,7 +160,7 @@
   transition: var(--transition-smooth);
 }
 
-.drawer-toggle-btn:hover {
+.drawer-header:hover .drawer-toggle-indicator {
   color: var(--text-primary);
 }
 
@@ -297,7 +301,7 @@
 
 .btn-primary {
   padding: 14px 26px;
-  background: linear-gradient(135deg, #10B981, #059669);
+  background: linear-gradient(135deg, #30D158, #248A3D);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -338,11 +342,20 @@
   background: rgba(244, 63, 94, 0.25);
 }
 
-/* Segmented Presets & SLA Sliders */
+/* Segmented Presets, Model Selector & SLA Sliders */
 .sla-section {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sla-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 
 .segmented-picker {
@@ -352,7 +365,46 @@
   border-radius: 10px;
   padding: 4px;
   gap: 4px;
-  margin-bottom: 20px;
+}
+
+.model-selector-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 4px 10px;
+}
+
+.model-selector-label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.model-select {
+  appearance: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2394A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 20px 4px 4px;
+  cursor: pointer;
+}
+
+.model-select option {
+  background-color: #0F141F;
+  color: #F8FAFC;
 }
 
 .segmented-btn {
@@ -574,9 +626,9 @@
   font-size: 11px;
   font-family: var(--font-mono);
   font-weight: 600;
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(48, 209, 88, 0.15);
   color: var(--accent-green);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(48, 209, 88, 0.3);
 }
 
 /* Output Card */
@@ -675,7 +727,7 @@
 }
 
 .matrix-table tr.selected-row {
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), transparent);
+  background: linear-gradient(90deg, rgba(48, 209, 88, 0.08), transparent);
 }
 
 .status-tag {
@@ -687,9 +739,9 @@
 }
 
 .status-tag.selected {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(48, 209, 88, 0.15);
   color: var(--accent-green);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(48, 209, 88, 0.3);
 }
 
 .status-tag.excluded {
@@ -745,6 +797,13 @@
   }
   .input-row {
     flex-direction: column;
+  }
+  .sla-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .model-selector-group {
+    justify-content: space-between;
   }
   .btn-primary {
     width: 100%;
@@ -854,7 +913,7 @@
 }
 
 .copy-id-btn.copied {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(48, 209, 88, 0.15);
   color: var(--accent-green);
-  border-color: rgba(16, 185, 129, 0.3);
+  border-color: rgba(48, 209, 88, 0.3);
 }

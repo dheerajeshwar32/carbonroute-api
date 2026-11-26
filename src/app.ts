@@ -14,6 +14,7 @@ import { cacheKey, ResponseCache } from './cache';
 import type { InferenceProvider } from './inference';
 import { buildInferenceSchema, formatIssues } from './validation';
 import { openApiSpec } from './openapi';
+import { round, gramsFor } from './utils/math';
 
 export interface AppDeps {
     config: AppConfig;
@@ -29,11 +30,6 @@ declare module 'express-serve-static-core' {
         log: Logger;
     }
 }
-
-const round = (n: number, digits = 4) => Number(n.toFixed(digits));
-
-/** grams CO2e = Wh * (g/kWh) / 1000 */
-const gramsFor = (energyWh: number, intensity: number) => round((energyWh * intensity) / 1000, 5);
 
 function regionView(r: RegionSnapshot) {
     return {

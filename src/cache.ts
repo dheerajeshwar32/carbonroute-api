@@ -54,23 +54,39 @@ export class NoopCache implements ResponseCache {
     async close() { /* no-op */ }
 }
 
-/** In-process LRU-ish cache. Handy for tests and local dev without Redis. */
+/**
+ * In-process LRU cache. On every cache hit the entry is re-inserted so that
+ * frequently accessed keys survive capacity eviction over cold entries.
+ */
 export class MemoryCache implements ResponseCache {
     private readonly store = new Map<string, { value: CachedCompletion; expires: number }>();
     constructor(private readonly ttlSeconds = 3600, private readonly maxEntries = 500) {}
+
     async get(key: string) {
         const hit = this.store.get(key);
         if (!hit) return null;
         if (hit.expires < Date.now()) { this.store.delete(key); return null; }
+        // LRU touch: delete and re-insert to push to end of iteration order
+        this.store.delete(key);
+        this.store.set(key, hit);
         return hit.value;
     }
+
     async set(key: string, value: CachedCompletion) {
+        // If key already exists, delete first to refresh position
+        if (this.store.has(key)) {
+            this.store.delete(key);
+        }
         if (this.store.size >= this.maxEntries) {
             const oldest = this.store.keys().next().value;
             if (oldest !== undefined) this.store.delete(oldest);
         }
         this.store.set(key, { value, expires: Date.now() + this.ttlSeconds * 1000 });
     }
+
+    /** Expose current size for testing. */
+    get size(): number { return this.store.size; }
+
     status(): CacheStatus { return 'up'; }
     async close() { this.store.clear(); }
 }

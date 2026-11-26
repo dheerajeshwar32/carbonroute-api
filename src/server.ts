@@ -6,16 +6,19 @@ import { loadConfig } from './config';
 import { createLogger } from './logger';
 import { RedisCache, MemoryCache } from './cache';
 import { GeminiInferenceProvider } from './inference';
-import { startTelemetryWorker } from './telemetry';
+import { TelemetryService } from './telemetry';
 
 async function bootstrap() {
     const config = loadConfig(process.env);
     const logger = createLogger(config.LOG_LEVEL, config.NODE_ENV !== 'production');
-    
-    // Telemetry source is synchronously seeded with fully populated baseline snapshots
-    const telemetry = startTelemetryWorker(config.CARBON_REFRESH_MS);
 
-    const cache = config.REDIS_URL 
+    // Encapsulated telemetry service — synchronously seeded with baseline snapshots
+    const telemetry = new TelemetryService({
+        electricityMapsApiKey: config.ELECTRICITY_MAPS_API_KEY,
+        pollIntervalMs: config.CARBON_REFRESH_MS,
+    }).start();
+
+    const cache = config.REDIS_URL
         ? new RedisCache(config.REDIS_URL, config.CACHE_TTL_SECONDS, config.CACHE_OP_TIMEOUT_MS, logger)
         : new MemoryCache(config.CACHE_TTL_SECONDS);
 
@@ -60,6 +63,20 @@ async function bootstrap() {
 
     process.on('SIGTERM', () => void shutdown('SIGTERM'));
     process.on('SIGINT', () => void shutdown('SIGINT'));
+
+    // Process-level crash handlers
+    process.on('unhandledRejection', (reason) => {
+        logger.fatal({ reason }, 'Unhandled Promise Rejection');
+    });
+
+    process.on('uncaughtException', (err) => {
+        logger.fatal({ err }, 'Uncaught Exception detected; initiating emergency shutdown');
+        telemetry.stop();
+        server.close(() => {
+            process.exit(1);
+        });
+        setTimeout(() => process.exit(1), 5_000).unref();
+    });
 }
 
 bootstrap().catch(err => {

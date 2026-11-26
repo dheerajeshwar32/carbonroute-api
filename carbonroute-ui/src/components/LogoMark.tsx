@@ -1,6 +1,8 @@
-import React from 'react';
+export interface LogoMarkProps {
+  size?: number;
+}
 
-export function LogoMark({ size = 44 }) {
+export function LogoMark({ size = 44 }: LogoMarkProps) {
   return (
     <svg
       width={size}
@@ -8,6 +10,7 @@ export function LogoMark({ size = 44 }) {
       viewBox="0 0 40 40"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
       style={{ filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35))' }}
     >
       <circle cx="11" cy="11" r="3.5" stroke="#F8FAFC" strokeWidth="2.2" fill="none" />
@@ -26,7 +29,7 @@ export function LogoMark({ size = 44 }) {
         strokeLinecap="round"
         fill="none"
       />
-      <circle cx="20" cy="28.5" r="4" fill="#10B981" />
+      <circle cx="20" cy="28.5" r="4" fill="#30D158" />
     </svg>
   );
 }

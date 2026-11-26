@@ -1,33 +1,52 @@
-import React, { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { SessionLedgerSummary } from '../types/contract';
 
-export function SessionLedgerBar({ ledger, onExport, onReset }) {
+export interface SessionLedgerBarProps {
+  ledger: SessionLedgerSummary;
+  onExport: () => void;
+  onReset: () => void;
+}
+
+export function SessionLedgerBar({ ledger, onExport, onReset }: SessionLedgerBarProps) {
   const [confirmReset, setConfirmReset] = useState(false);
+  const confirmTimerRef = useRef<number | null>(null);
 
-  const safeLedger = ledger || {
-    totalRequests: 0,
-    cacheHitRatio: 0,
-    cumulativeEmissionsSavedG: 0,
-    history: [],
-  };
+  useEffect(() => {
+    return () => {
+      if (confirmTimerRef.current !== null) {
+        window.clearTimeout(confirmTimerRef.current);
+      }
+    };
+  }, []);
 
-  const isEmpty = safeLedger.totalRequests === 0;
+  const isEmpty = ledger.totalRequests === 0;
 
   const handleResetClick = () => {
     if (confirmReset) {
+      if (confirmTimerRef.current !== null) {
+        window.clearTimeout(confirmTimerRef.current);
+        confirmTimerRef.current = null;
+      }
       onReset();
       setConfirmReset(false);
     } else {
       setConfirmReset(true);
-      setTimeout(() => setConfirmReset(false), 4000);
+      if (confirmTimerRef.current !== null) {
+        window.clearTimeout(confirmTimerRef.current);
+      }
+      confirmTimerRef.current = window.setTimeout(() => {
+        setConfirmReset(false);
+        confirmTimerRef.current = null;
+      }, 4000);
     }
   };
 
   return (
-    <div className="glass-panel ledger-bar spring-enter">
+    <section className="glass-panel ledger-bar spring-enter" aria-label="Session carbon impact ledger">
       <div className="ledger-metrics">
         <div className="ledger-stat-item">
           <span className="ledger-label">Queries Routed</span>
-          <span className="ledger-val tabular-numbers">{safeLedger.totalRequests}</span>
+          <span className="ledger-val tabular-numbers">{ledger.totalRequests}</span>
         </div>
 
         <div className="ledger-divider" />
@@ -36,9 +55,9 @@ export function SessionLedgerBar({ ledger, onExport, onReset }) {
           <span className="ledger-label">Cache Hit Ratio</span>
           <span
             className="ledger-val tabular-numbers"
-            style={{ color: safeLedger.cacheHitRatio > 0 ? 'var(--accent-green)' : 'inherit' }}
+            style={{ color: ledger.cacheHitRatio > 0 ? 'var(--accent-green)' : 'inherit' }}
           >
-            {safeLedger.cacheHitRatio}%
+            {ledger.cacheHitRatio}%
           </span>
         </div>
 
@@ -47,7 +66,7 @@ export function SessionLedgerBar({ ledger, onExport, onReset }) {
         <div className="ledger-stat-item">
           <span className="ledger-label">CO₂e Avoided</span>
           <span className="ledger-val tabular-numbers" style={{ color: 'var(--accent-green)' }}>
-            {safeLedger.cumulativeEmissionsSavedG.toFixed(4)}{' '}
+            {ledger.cumulativeEmissionsSavedG.toFixed(4)}{' '}
             <span style={{ fontSize: '11px', fontWeight: 500 }}>gCO₂e</span>
           </span>
         </div>
@@ -69,7 +88,7 @@ export function SessionLedgerBar({ ledger, onExport, onReset }) {
           disabled={isEmpty}
           className="btn-ledger-action"
           title={isEmpty ? 'No telemetry recorded yet' : 'Export complete session telemetry as JSON'}
-          style={isEmpty ? { opacity: 0.45, cursor: 'not-allowed' } : {}}
+          style={isEmpty ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
         >
           <span>⬇ Export JSON</span>
         </button>
@@ -80,11 +99,11 @@ export function SessionLedgerBar({ ledger, onExport, onReset }) {
           disabled={isEmpty}
           className={`btn-ledger-action ${confirmReset ? 'confirm-danger' : ''}`}
           title={confirmReset ? 'Click again to confirm reset' : 'Reset session statistics'}
-          style={isEmpty ? { opacity: 0.45, cursor: 'not-allowed' } : {}}
+          style={isEmpty ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
         >
           <span>{confirmReset ? 'Confirm Reset?' : 'Reset'}</span>
         </button>
       </div>
-    </div>
+    </section>
   );
 }

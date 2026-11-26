@@ -1,27 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { InferenceSuccessResponse } from '../types/contract';
 
-export function TelemetryStats({ result }) {
-  if (!result || !result.telemetry) return null;
+export interface TelemetryStatsProps {
+  result: InferenceSuccessResponse | null;
+}
 
-  const isCache = Boolean(result.cache_hit);
-  const carbonValue = result.telemetry.live_carbon_intensity ?? result.telemetry.carbon_intensity ?? 0;
-  const latencyMs = result.telemetry.latency_ms ?? 0;
+export function TelemetryStats({ result }: TelemetryStatsProps) {
+  const isCache = Boolean(result?.cache_hit);
+  const carbonValue = result?.telemetry?.live_carbon_intensity ?? result?.telemetry?.carbon_intensity ?? 0;
+  const latencyMs = result?.telemetry?.latency_ms ?? 0;
 
   // Dynamic maximum calculation across all candidate regions, defaulting to at least 700
-  const candidateCarbons = result.routing?.candidates?.map(c => c.carbon_intensity) || [];
+  const candidateCarbons = result?.routing?.candidates?.map((c) => c.carbon_intensity) || [];
   const maxScale = Math.max(700, ...candidateCarbons);
   const targetPct = isCache ? 0 : Math.min(100, Math.round((carbonValue / maxScale) * 100));
 
   const [gaugeWidth, setGaugeWidth] = useState(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setGaugeWidth(targetPct);
     }, 60);
-    return () => clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [targetPct]);
 
-  // Color selection
+  if (!result || !result.telemetry) return null;
+
   const carbonColor = isCache
     ? 'var(--accent-green)'
     : carbonValue < 150
@@ -38,11 +42,11 @@ export function TelemetryStats({ result }) {
         <div className="stat-metric-hero" style={{ fontSize: '24px' }}>
           {result.location || 'Unknown Region'}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-secondary)' }}>
             {result.routed_to}
           </span>
-          {isCache && <span className="cache-badge">⚡ Redis Cache (0g)</span>}
+          {isCache && <span className="cache-badge">⚡ Redis Cache (0 gCO₂e)</span>}
         </div>
       </div>
 
@@ -53,7 +57,7 @@ export function TelemetryStats({ result }) {
           {carbonValue}{' '}
           <span className="stat-unit-label">gCO₂e/kWh</span>
         </div>
-        <div className="gauge-track">
+        <div className="gauge-track" aria-hidden="true">
           <div
             className="gauge-progress"
             style={{

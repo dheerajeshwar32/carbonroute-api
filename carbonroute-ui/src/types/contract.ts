@@ -9,10 +9,15 @@ export interface ResponseMeta {
   version: string;
 }
 
+export interface ApiErrorFieldDetail {
+  field: string;
+  message: string;
+}
+
 export interface ApiErrorDetail {
   code: string;
   message: string;
-  details?: Array<{ field: string; message: string }> | Record<string, unknown> | null;
+  details?: ApiErrorFieldDetail[] | Record<string, unknown> | null;
 }
 
 export interface ApiErrorResponse {
@@ -21,9 +26,16 @@ export interface ApiErrorResponse {
   code: string;
   message: string;
   error: ApiErrorDetail;
-  details?: Array<{ field: string; message: string }> | null;
+  details?: ApiErrorFieldDetail[] | null;
   request_id?: string;
   meta: ResponseMeta;
+}
+
+export interface ClientErrorState {
+  code: string;
+  message: string;
+  details?: ApiErrorFieldDetail[] | Record<string, unknown> | null;
+  requestId?: string | null;
 }
 
 export interface RegionSnapshot {
@@ -59,7 +71,9 @@ export interface RoutingPolicy {
 export interface FailoverAttempt {
   region: string;
   status: number | null;
+  code?: string | null;
   error: string;
+  details?: unknown;
 }
 
 export interface RoutingView {
@@ -107,10 +121,12 @@ export interface InferenceSuccessResponse {
   location: string;
   telemetry: TelemetryView;
   impact: ImpactView;
-  routing: RoutingView;
+  routing: RoutingView | null;
   usage: TokenUsage | null;
   data: string;
 }
+
+export type SLAPreset = 'eco' | 'balanced' | 'latency' | 'custom';
 
 export interface SLAConfigPayload {
   max_latency_ms: number;

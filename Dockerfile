@@ -6,7 +6,7 @@ WORKDIR /app
 
 # 3. Copy package files and install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 # 4. Copy the rest of your source code
 COPY . .
@@ -21,7 +21,7 @@ WORKDIR /app
 # Copy only the compiled code and production dependencies from the builder
 COPY --from=builder /app/dist ./dist
 COPY package*.json ./
-RUN npm install --only=production
+RUN npm ci --omit=dev
 
 # 7. Expose the port your server listens on
 EXPOSE 3000

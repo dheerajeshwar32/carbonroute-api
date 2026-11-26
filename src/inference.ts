@@ -54,20 +54,73 @@ export interface ParsedErrorDiagnostics {
     details: unknown;
 }
 
-function tryExtractJsonError(str: string): Record<string, unknown> | null {
-    const match = str.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-        const obj = JSON.parse(match[0]);
-        if (obj && typeof obj === 'object') {
-            if (obj.error && typeof obj.error === 'object') {
-                return obj.error as Record<string, unknown>;
+/**
+ * Balanced-brace JSON extractor. Scans for the outermost `{...}` block by tracking
+ * brace depth while respecting string literals and escape sequences, so it handles:
+ *   - Arbitrarily nested JSON (2–4 levels deep)
+ *   - Non-JSON braces preceding the actual payload (e.g. "Error in {config}: {...}")
+ *   - Escaped quotes inside strings (`\"`)
+ */
+export function tryExtractJsonError(str: string): Record<string, unknown> | null {
+    const len = str.length;
+    let startIdx = -1;
+
+    for (let scanStart = 0; scanStart < len; scanStart++) {
+        if (str[scanStart] !== '{') continue;
+
+        // Attempt balanced extraction from this opening brace
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+        let endIdx = -1;
+
+        for (let i = scanStart; i < len; i++) {
+            const ch = str[i];
+
+            if (escaped) {
+                escaped = false;
+                continue;
             }
-            return obj as Record<string, unknown>;
+
+            if (ch === '\\' && inString) {
+                escaped = true;
+                continue;
+            }
+
+            if (ch === '"') {
+                inString = !inString;
+                continue;
+            }
+
+            if (inString) continue;
+
+            if (ch === '{') depth++;
+            else if (ch === '}') {
+                depth--;
+                if (depth === 0) {
+                    endIdx = i;
+                    break;
+                }
+            }
         }
-    } catch {
-        return null;
+
+        if (endIdx === -1) continue;
+
+        const candidate = str.slice(scanStart, endIdx + 1);
+        try {
+            const obj = JSON.parse(candidate);
+            if (obj && typeof obj === 'object') {
+                if (obj.error && typeof obj.error === 'object') {
+                    return obj.error as Record<string, unknown>;
+                }
+                return obj as Record<string, unknown>;
+            }
+        } catch {
+            // This balanced block wasn't valid JSON — try the next opening brace
+            continue;
+        }
     }
+
     return null;
 }
 
