@@ -89,11 +89,14 @@ export function App() {
         }
         if (Array.isArray(rData.allowed_models) && rData.allowed_models.length > 0) {
           setAllowedModels(rData.allowed_models);
+          const preferredDefault = rData.default_model && rData.allowed_models.includes(rData.default_model)
+            ? rData.default_model
+            : rData.allowed_models[0];
           setSelectedModel((prev) => {
             if (!hasUserSelectedModelRef.current || !prev) {
-              return rData.allowed_models[0];
+              return preferredDefault;
             }
-            return rData.allowed_models.includes(prev) ? prev : rData.allowed_models[0];
+            return rData.allowed_models.includes(prev) ? prev : preferredDefault;
           });
         }
       }

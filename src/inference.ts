@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import type { Logger } from 'pino';
 import { ServiceUnavailableError, UpstreamError } from './errors';
 
@@ -44,7 +44,7 @@ export interface GeminiProviderOptions {
     logger: Logger;
 }
 
-/** Status codes worth retrying in another region (model not offered there, quota, outage, timeout). */
+/** Status codes worth retrying (model unavailable in region, quota spike, outage, timeout). */
 const RETRYABLE = new Set([404, 408, 429, 500, 502, 503, 504]);
 
 export interface ParsedErrorDiagnostics {
@@ -52,6 +52,58 @@ export interface ParsedErrorDiagnostics {
     code: string | null;
     message: string;
     details: unknown;
+}
+
+/**
+ * Selects model-appropriate thinkingConfig for @google/genai `models.generateContent`.
+ * Gemini 3.5+ / 4.x reject legacy `thinkingBudget: 0` with 400 INVALID_ARGUMENT, while
+ * default HIGH thinking causes latency timeouts; each family gets its lowest safe level.
+ */
+export function buildGenerateConfig(
+    model: string,
+    abortSignal: AbortSignal,
+    omitThinking = false
+): Record<string, unknown> {
+    if (omitThinking) {
+        return { abortSignal };
+    }
+
+    if (model.startsWith('gemini-2.5')) {
+        return { thinkingConfig: { thinkingBudget: 0 }, abortSignal };
+    }
+
+    if (model === 'gemini-3.5-flash-lite' || model.startsWith('gemini-3.5-flash-lite-')) {
+        return { thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }, abortSignal };
+    }
+
+    if (model.startsWith('gemini-3.1-flash-lite')) {
+        return { abortSignal };
+    }
+
+    if (model.startsWith('gemini-4-') || model.startsWith('gemini-3.')) {
+        return { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }, abortSignal };
+    }
+
+    return { abortSignal };
+}
+
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+    if (ms <= 0) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(new Error('Aborted'));
+            return;
+        }
+        const timer = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        const onAbort = () => {
+            clearTimeout(timer);
+            reject(new Error('Aborted'));
+        };
+        signal?.addEventListener('abort', onAbort, { once: true });
+    });
 }
 
 /**
@@ -63,12 +115,10 @@ export interface ParsedErrorDiagnostics {
  */
 export function tryExtractJsonError(str: string): Record<string, unknown> | null {
     const len = str.length;
-    let startIdx = -1;
 
     for (let scanStart = 0; scanStart < len; scanStart++) {
         if (str[scanStart] !== '{') continue;
 
-        // Attempt balanced extraction from this opening brace
         let depth = 0;
         let inString = false;
         let escaped = false;
@@ -116,7 +166,6 @@ export function tryExtractJsonError(str: string): Record<string, unknown> | null
                 return obj as Record<string, unknown>;
             }
         } catch {
-            // This balanced block wasn't valid JSON — try the next opening brace
             continue;
         }
     }
@@ -172,7 +221,6 @@ export function describeError(err: unknown): ParsedErrorDiagnostics {
     let message = typeof e.message === 'string' ? e.message : String(err);
     let details = e.errorDetails ?? e.details ?? e.response?.data ?? null;
 
-    // Check for JSON embedded in message or details string
     const embedded = tryExtractJsonError(message);
     if (embedded) {
         if (!status && typeof embedded.code === 'number') status = embedded.code;
@@ -209,6 +257,7 @@ export function describeError(err: unknown): ParsedErrorDiagnostics {
  *    fails over to the next-best region from the scheduler's ranking.
  *  - global:   Gemini Developer API (single global endpoint). Routing is then a
  *    simulation — the response is labelled `execution_mode: "simulated"`.
+ *    Supports transient 503/429 retry resilience up to `maxAttempts`.
  */
 export class GeminiInferenceProvider implements InferenceProvider {
     readonly mode: ExecutionMode;
@@ -259,13 +308,15 @@ export class GeminiInferenceProvider implements InferenceProvider {
 
         const targets: (string | null)[] = this.mode === 'regional'
             ? candidates.slice(0, this.opts.maxAttempts)
-            : [null];
+            : Array.from({ length: Math.max(1, this.opts.maxAttempts) }, () => null);
 
         const failover: FailoverAttempt[] = [];
+        let omitThinking = false;
 
-        for (const region of targets) {
+        for (let idx = 0; idx < targets.length; idx++) {
+            const region = targets[idx];
             if (signal?.aborted) {
-                throw new UpstreamError('Inference request was aborted during regional dispatch.', {
+                throw new UpstreamError('Inference request was aborted during dispatch.', {
                     cancelled: true,
                     region,
                 });
@@ -276,14 +327,11 @@ export class GeminiInferenceProvider implements InferenceProvider {
                 ? AbortSignal.any([signal, attemptTimeout])
                 : (signal ?? attemptTimeout);
 
-            try {
+            const executeOnce = async (withoutThinking: boolean): Promise<InferenceResult> => {
                 const response = await this.clientFor(region).models.generateContent({
                     model,
                     contents: prompt,
-                    config: {
-                        thinkingConfig: { thinkingBudget: 0 },
-                        abortSignal: combinedSignal,
-                    } as any,
+                    config: buildGenerateConfig(model, combinedSignal, withoutThinking) as any,
                 });
 
                 const text = response.text;
@@ -300,6 +348,10 @@ export class GeminiInferenceProvider implements InferenceProvider {
                         outputTokens: response.usageMetadata?.candidatesTokenCount ?? null,
                     },
                 };
+            };
+
+            try {
+                return await executeOnce(omitThinking);
             } catch (err) {
                 if (signal?.aborted) {
                     throw new UpstreamError('Inference request aborted by client disconnect.', { cancelled: true });
@@ -308,16 +360,40 @@ export class GeminiInferenceProvider implements InferenceProvider {
                 if (err instanceof UpstreamError) throw err;
 
                 let { status, code, message, details } = describeError(err);
-                if (attemptTimeout.aborted && !signal?.aborted) {
+
+                // If an unfamiliar custom model rejected thinkingConfig with 400, retry immediately without thinkingConfig
+                if (
+                    !omitThinking &&
+                    status === 400 &&
+                    /invalid argument|thinking/i.test(message)
+                ) {
+                    omitThinking = true;
+                    this.log.warn({ model, region, err: message }, 'thinkingConfig unsupported by model; retrying with plain config');
+                    try {
+                        return await executeOnce(true);
+                    } catch (fallbackErr) {
+                        if (signal?.aborted) {
+                            throw new UpstreamError('Inference request aborted by client disconnect.', { cancelled: true });
+                        }
+                        if (fallbackErr instanceof UpstreamError) throw fallbackErr;
+                        ({ status, code, message, details } = describeError(fallbackErr));
+                    }
+                }
+
+                const localTimedOut = attemptTimeout.aborted && !signal?.aborted;
+                if (localTimedOut) {
                     status = 504;
                     code = 'DEADLINE_EXCEEDED';
                     message = 'Upstream Gemini model timed out (504 DEADLINE_EXCEEDED). The gateway automatically attempted regional failover — please retry.';
                 }
 
-                const retryable = status === null || RETRYABLE.has(status);
+                // In global mode, avoid double-waiting another full timeout if the local timeout already expired
+                const retryable =
+                    (status === null || RETRYABLE.has(status)) &&
+                    !(region === null && localTimedOut);
 
                 this.log.warn(
-                    { region, status, code, retryable, err: message, details },
+                    { region, model, status, code, retryable, err: message, details },
                     'model call failed'
                 );
 
@@ -330,6 +406,15 @@ export class GeminiInferenceProvider implements InferenceProvider {
                 });
 
                 if (!retryable) break;
+
+                // Brief backoff when retrying same global endpoint after transient 503/429
+                if (region === null && idx < targets.length - 1) {
+                    try {
+                        await abortableDelay(300 * (idx + 1), signal);
+                    } catch {
+                        throw new UpstreamError('Inference request aborted by client disconnect.', { cancelled: true });
+                    }
+                }
             }
         }
 

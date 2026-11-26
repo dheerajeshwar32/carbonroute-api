@@ -104,7 +104,7 @@ describe('API Gateway Endpoints', () => {
     it('POST /api/v1/inference returns unified success envelope and normalizes simplex weights', async () => {
         const payload = {
             prompt: 'Test green routing verification prompt',
-            model: 'gemini-3.8-flash',
+            model: 'gemini-3.5-flash-lite',
             sla: {
                 max_latency_ms: 250,
                 carbon_priority_weight: 0.8,
@@ -131,7 +131,7 @@ describe('API Gateway Endpoints', () => {
     it('POST /api/v1/inference returns cache hit on subsequent identical prompt', async () => {
         const payload = {
             prompt: 'Test cache hit prompt',
-            model: 'gemini-3.8-flash',
+            model: 'gemini-3.5-flash-lite',
             sla: { max_latency_ms: 300 },
         };
 

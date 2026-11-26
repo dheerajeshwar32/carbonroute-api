@@ -24,8 +24,8 @@ const EnvSchema = z.object({
     GOOGLE_CLOUD_PROJECT: z.string().optional(),
     /** auto = regional if GOOGLE_CLOUD_PROJECT is set, otherwise global. */
     INFERENCE_MODE: z.enum(['auto', 'regional', 'global']).default('auto'),
-    DEFAULT_MODEL: z.string().default('gemini-3.8-flash'),
-    ALLOWED_MODELS: z.string().default('gemini-3.8-flash,gemini-3.5-flash-lite,gemini-3.5-flash').transform(csv),
+    DEFAULT_MODEL: z.string().default('gemini-3.5-flash-lite'),
+    ALLOWED_MODELS: z.string().default('gemini-3.5-flash-lite,gemini-4-hydrogen,gemini-3.1-flash-lite,gemini-3.8-flash').transform(csv),
     MAX_PROMPT_CHARS: z.coerce.number().int().positive().default(4000),
     INFERENCE_TIMEOUT_MS: z.coerce.number().int().positive().default(25_000),
     MAX_FAILOVER_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(2),
