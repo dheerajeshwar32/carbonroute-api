@@ -48,8 +48,11 @@ export function TopBar({
     <header className="topbar">
       <div className="topbar-inner">
         <div className="topbar-brand">
-          <LogoMark size={22} />
-          <h1 className="brand-wordmark">CarbonRoute</h1>
+          <LogoMark size={28} />
+          <h1 className="brand-wordmark">
+            <span className="brand-wordmark-primary">Carbon</span>
+            <span className="brand-wordmark-secondary">Route</span>
+          </h1>
         </div>
 
         <div className="topbar-actions">

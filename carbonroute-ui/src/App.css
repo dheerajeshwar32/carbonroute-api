@@ -74,10 +74,21 @@
 }
 
 .brand-wordmark {
-  font-size: 15px;
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.brand-wordmark-primary {
   font-weight: 600;
-  letter-spacing: -0.025em;
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.brand-wordmark-secondary {
+  font-weight: 500;
+  color: rgba(235, 235, 245, 0.68);
 }
 
 .topbar-actions {

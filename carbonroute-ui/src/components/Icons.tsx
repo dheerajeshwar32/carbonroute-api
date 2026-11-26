@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 export interface IconProps {
   size?: number;
   className?: string;
@@ -12,32 +14,57 @@ const strokeProps = {
   'aria-hidden': true as const,
 };
 
-export function LogoMark({ size = 22, className }: IconProps) {
+export function LogoMark({ size = 28, className }: IconProps) {
+  const gradId = `cr-squircle-${useId().replace(/:/g, '')}`;
+
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="0 0 28 28"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-hidden="true"
     >
-      <circle cx="6.5" cy="6.5" r="2" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="17.5" cy="6.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="28" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1C2638" />
+          <stop offset="100%" stopColor="#111827" />
+        </linearGradient>
+      </defs>
+      <rect
+        x="0.5"
+        y="0.5"
+        width="27"
+        height="27"
+        rx="7.5"
+        fill={`url(#${gradId})`}
+        stroke="rgba(255, 255, 255, 0.12)"
+        strokeWidth="1"
+      />
       <path
-        d="M6.5 8.5C6.5 12.8 9.5 13.8 12 16"
-        stroke="currentColor"
-        strokeWidth="1.5"
+        d="M 7.5 14 C 13 14 14.5 19.5 18.25 19.5"
+        stroke="rgba(235, 235, 245, 0.24)"
+        strokeWidth="2"
         strokeLinecap="round"
       />
       <path
-        d="M17.5 8.5C17.5 12.8 14.5 13.8 12 16"
-        stroke="currentColor"
-        strokeWidth="1.5"
+        d="M 7.5 14 C 13 14 14.5 8.5 20 8.5"
+        stroke="#F8FAFC"
+        strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="12" cy="17.75" r="2.25" fill="#34D399" />
+      <circle cx="7.5" cy="14" r="2" fill="#F8FAFC" />
+      <circle
+        cx="20"
+        cy="19.5"
+        r="1.75"
+        fill="none"
+        stroke="rgba(235, 235, 245, 0.24)"
+        strokeWidth="1.5"
+      />
+      <circle cx="20" cy="8.5" r="2.4" fill="#30D158" />
     </svg>
   );
 }
