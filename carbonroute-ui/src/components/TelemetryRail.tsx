@@ -90,14 +90,15 @@ export function TelemetryRail({
   }, [regions, maxLatency]);
 
   const cutoffPct = Math.min(100, Math.max(0, (maxLatency / maxScaleMs) * 100));
-  const hideLeftBound = cutoffPct < 20;
-  const hideRightBound = cutoffPct > 76;
+  const hideLeftBound = cutoffPct < 14;
   const cutoffLabelTransform =
     cutoffPct < 10
       ? 'translate(0%, -50%)'
       : cutoffPct > 90
-        ? 'translate(-100%, -50%)'
-        : 'translate(-50%, -50%)';
+        ? 'translate(calc(-100% - 38px), -50%)'
+        : cutoffPct > 83
+          ? 'translate(-100%, -50%)'
+          : 'translate(-50%, -50%)';
 
   return (
     <section className="surface-card telemetry-rail-card" aria-label="Global region telemetry and latency SLA">
@@ -130,12 +131,9 @@ export function TelemetryRail({
                 className="sla-cutoff-readout mono-tabular"
                 style={{ left: `${cutoffPct}%`, transform: cutoffLabelTransform }}
               >
-                {maxLatency}ms SLA
+                SLA {maxLatency}ms
               </span>
-              <span
-                className={`sla-scale-bound mono-tabular${hideRightBound ? ' sla-scale-bound-hidden' : ''}`}
-                aria-hidden={hideRightBound || undefined}
-              >
+              <span className="sla-scale-bound sla-scale-bound-right mono-tabular">
                 {maxScaleMs}ms
               </span>
             </div>

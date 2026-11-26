@@ -27,8 +27,8 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 const STARTER_PROMPTS = [
   'Explain Byzantine Fault Tolerance',
   'Compare Rust vs Go memory safety',
-  'Design a sliding-window rate limiter in Redis',
-  'Summarize how green grid carbon intensity works',
+  'Design a Redis sliding-window rate limiter',
+  'How grid carbon intensity is calculated',
 ] as const;
 
 export interface ResponseCardProps {
