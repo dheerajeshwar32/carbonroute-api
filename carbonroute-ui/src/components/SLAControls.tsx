@@ -1,14 +1,11 @@
-import React, { memo, useId } from 'react';
+import { memo, useId } from 'react';
 import type { SLAPreset } from '../types/contract';
+import { Sliders } from './Icons';
 
 const calcPct = (val: number, min: number, max: number): number =>
   Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
 
-type SliderCSSProperties = React.CSSProperties & {
-  '--slider-pct': string;
-};
-
-export interface SLAControlsProps {
+export interface SlaControlsProps {
   maxLatency: number;
   setMaxLatency: (val: number) => void;
   carbonWeight: number;
@@ -19,13 +16,66 @@ export interface SLAControlsProps {
   setLatencyWeight: (val: number) => void;
   activePreset: SLAPreset;
   setActivePreset: (preset: SLAPreset) => void;
-  selectedModel: string;
-  setSelectedModel: (model: string) => void;
-  allowedModels: string[];
-  disabled?: boolean;
 }
 
-export const SLAControls = memo(function SLAControls({
+function HairlineSlider({
+  id,
+  name,
+  label,
+  readout,
+  min,
+  max,
+  step,
+  value,
+  fillTone,
+  onChange,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  readout: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  fillTone: 'default' | 'mint' | 'slate' | 'sky';
+  onChange: (nextVal: number) => void;
+}) {
+  const pct = calcPct(value, min, max);
+
+  return (
+    <div className="hairline-slider-group">
+      <div className="hairline-slider-header">
+        <label htmlFor={id} className="hairline-slider-label">
+          {label}
+        </label>
+        <span className="hairline-slider-readout mono-tabular">{readout}</span>
+      </div>
+
+      <div className="hairline-range-wrap">
+        <div className="hairline-track-bg" aria-hidden="true">
+          <div
+            className={`hairline-track-fill tone-${fillTone}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <input
+          id={id}
+          name={name}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="hairline-range-input"
+        />
+      </div>
+    </div>
+  );
+}
+
+export const SlaControls = memo(function SlaControls({
   maxLatency,
   setMaxLatency,
   carbonWeight,
@@ -36,16 +86,11 @@ export const SLAControls = memo(function SLAControls({
   setLatencyWeight,
   activePreset,
   setActivePreset,
-  selectedModel,
-  setSelectedModel,
-  allowedModels,
-  disabled = false,
-}: SLAControlsProps) {
+}: SlaControlsProps) {
   const latencySliderId = useId();
   const carbonSliderId = useId();
   const costSliderId = useId();
   const latencyWeightSliderId = useId();
-  const modelSelectId = useId();
 
   const applyPreset = (preset: SLAPreset) => {
     setActivePreset(preset);
@@ -69,155 +114,148 @@ export const SLAControls = memo(function SLAControls({
     setter(val);
   };
 
-  const maxLatencyPct = calcPct(maxLatency, 50, 500);
-  const carbonWeightPct = calcPct(carbonWeight, 0, 100);
-  const costWeightPct = calcPct(costWeight, 0, 100);
-  const latencyWeightPct = calcPct(latencyWeight, 0, 100);
+  const weightSum = carbonWeight + costWeight + latencyWeight;
+  const hasValidWeights = weightSum > 0;
+  const normCarbonPct = hasValidWeights ? (carbonWeight / weightSum) * 100 : 0;
+  const normCostPct = hasValidWeights ? (costWeight / weightSum) * 100 : 0;
+  const normLatencyPct = hasValidWeights ? (latencyWeight / weightSum) * 100 : 0;
+
+  const formatShare = (share: number): string => {
+    const rounded = Number(share.toFixed(1));
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  };
 
   return (
-    <div className="sla-section">
-      <div className="sla-toolbar">
-        <div className="segmented-picker" role="tablist" aria-label="SLA Presets">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activePreset === 'eco'}
-            className={`segmented-btn ${activePreset === 'eco' ? 'active' : ''}`}
-            onClick={() => applyPreset('eco')}
-          >
-            Eco Max
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activePreset === 'balanced'}
-            className={`segmented-btn ${activePreset === 'balanced' ? 'active' : ''}`}
-            onClick={() => applyPreset('balanced')}
-          >
-            Balanced
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activePreset === 'latency'}
-            className={`segmented-btn ${activePreset === 'latency' ? 'active' : ''}`}
-            onClick={() => applyPreset('latency')}
-          >
-            Low Latency
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activePreset === 'custom'}
-            className={`segmented-btn ${activePreset === 'custom' ? 'active' : ''}`}
-            onClick={() => setActivePreset('custom')}
-          >
-            Custom
-          </button>
-        </div>
-
-        <div className="model-selector-group">
-          <label htmlFor={modelSelectId} className="model-selector-label">
-            Model
-          </label>
-          <select
-            id={modelSelectId}
-            name="model"
-            value={selectedModel}
-            disabled={disabled || allowedModels.length === 0}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="model-select"
-          >
-            {allowedModels.length === 0 ? (
-              <option value="">Awaiting gateway...</option>
-            ) : (
-              allowedModels.map((modelId) => (
-                <option key={modelId} value={modelId}>
-                  {modelId}
-                </option>
-              ))
-            )}
-          </select>
+    <section className="surface-card sla-controls-card" aria-label="Multi-objective SLA policy controls">
+      <div className="panel-header-row">
+        <div className="panel-heading-group">
+          <Sliders size={14} className="text-secondary" />
+          <h2 className="panel-title">Routing Policy</h2>
         </div>
       </div>
 
-      <div className="sliders-grid">
-        <div className="slider-group">
-          <label htmlFor={latencySliderId} className="slider-label">
-            <span>Latency SLA Limit</span>
-            <span className="slider-val tabular-numbers">{maxLatency} ms</span>
-          </label>
-          <input
-            id={latencySliderId}
-            name="max_latency_ms"
-            type="range"
-            min={50}
-            max={500}
-            step={10}
-            value={maxLatency}
-            onChange={(e) => setMaxLatency(Number(e.target.value))}
-            className="apple-slider"
-            style={{ '--slider-pct': `${maxLatencyPct}%` } as SliderCSSProperties}
-          />
+      {/* Segmented Presets */}
+      <div className="preset-segmented" role="tablist" aria-label="Routing policy presets">
+        {(
+          [
+            { key: 'eco', label: 'Eco Max' },
+            { key: 'balanced', label: 'Balanced' },
+            { key: 'latency', label: 'Low Latency' },
+            { key: 'custom', label: 'Custom' },
+          ] as const
+        ).map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={activePreset === key}
+            className={`preset-tab ${activePreset === key ? 'active' : ''}`}
+            onClick={() => (key === 'custom' ? setActivePreset('custom') : applyPreset(key))}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Precision Hairline Sliders */}
+      <div className="hairline-sliders-stack">
+        <HairlineSlider
+          id={latencySliderId}
+          name="max_latency_ms"
+          label="Latency SLA"
+          readout={`${maxLatency} ms`}
+          min={50}
+          max={500}
+          step={10}
+          value={maxLatency}
+          fillTone="default"
+          onChange={setMaxLatency}
+        />
+
+        <HairlineSlider
+          id={carbonSliderId}
+          name="carbon_priority_weight"
+          label="Carbon Weight"
+          readout={`${carbonWeight}%`}
+          min={0}
+          max={100}
+          step={5}
+          value={carbonWeight}
+          fillTone="mint"
+          onChange={(v) => handleCustomChange(setCarbonWeight, v)}
+        />
+
+        <HairlineSlider
+          id={costSliderId}
+          name="cost_priority_weight"
+          label="Cost Weight"
+          readout={`${costWeight}%`}
+          min={0}
+          max={100}
+          step={5}
+          value={costWeight}
+          fillTone="slate"
+          onChange={(v) => handleCustomChange(setCostWeight, v)}
+        />
+
+        <HairlineSlider
+          id={latencyWeightSliderId}
+          name="latency_priority_weight"
+          label="Latency Weight"
+          readout={`${latencyWeight}%`}
+          min={0}
+          max={100}
+          step={5}
+          value={latencyWeight}
+          fillTone="sky"
+          onChange={(v) => handleCustomChange(setLatencyWeight, v)}
+        />
+      </div>
+
+      {/* Normalized Simplex Ratio Bar */}
+      <div className="simplex-summary-block">
+        <div className="simplex-bar-track" aria-label="Normalized simplex objective weights">
+          {hasValidWeights ? (
+            <>
+              <div
+                className="simplex-seg seg-mint"
+                style={{ width: `${normCarbonPct}%` }}
+              />
+              <div
+                className="simplex-seg seg-slate"
+                style={{ width: `${normCostPct}%` }}
+              />
+              <div
+                className="simplex-seg seg-sky"
+                style={{ width: `${normLatencyPct}%` }}
+              />
+            </>
+          ) : (
+            <div className="simplex-seg seg-invalid" style={{ width: '100%' }} />
+          )}
         </div>
 
-        <div className="slider-group">
-          <label htmlFor={carbonSliderId} className="slider-label">
-            <span>Carbon Priority</span>
-            <span className="slider-val tabular-numbers">{carbonWeight}%</span>
-          </label>
-          <input
-            id={carbonSliderId}
-            name="carbon_priority_weight"
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={carbonWeight}
-            onChange={(e) => handleCustomChange(setCarbonWeight, Number(e.target.value))}
-            className="apple-slider"
-            style={{ '--slider-pct': `${carbonWeightPct}%` } as SliderCSSProperties}
-          />
-        </div>
-
-        <div className="slider-group">
-          <label htmlFor={costSliderId} className="slider-label">
-            <span>Cost Priority</span>
-            <span className="slider-val tabular-numbers">{costWeight}%</span>
-          </label>
-          <input
-            id={costSliderId}
-            name="cost_priority_weight"
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={costWeight}
-            onChange={(e) => handleCustomChange(setCostWeight, Number(e.target.value))}
-            className="apple-slider"
-            style={{ '--slider-pct': `${costWeightPct}%` } as SliderCSSProperties}
-          />
-        </div>
-
-        <div className="slider-group">
-          <label htmlFor={latencyWeightSliderId} className="slider-label">
-            <span>Latency Priority</span>
-            <span className="slider-val tabular-numbers">{latencyWeight}%</span>
-          </label>
-          <input
-            id={latencyWeightSliderId}
-            name="latency_priority_weight"
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={latencyWeight}
-            onChange={(e) => handleCustomChange(setLatencyWeight, Number(e.target.value))}
-            className="apple-slider"
-            style={{ '--slider-pct': `${latencyWeightPct}%` } as SliderCSSProperties}
-          />
+        <div className="simplex-legend-row mono-tabular">
+          {hasValidWeights ? (
+            <>
+              <span className="legend-item">
+                <span className="legend-dot dot-mint" aria-hidden="true" />
+                {formatShare(normCarbonPct)}% C
+              </span>
+              <span className="legend-item">
+                <span className="legend-dot dot-slate" aria-hidden="true" />
+                {formatShare(normCostPct)}% P
+              </span>
+              <span className="legend-item">
+                <span className="legend-dot dot-sky" aria-hidden="true" />
+                {formatShare(normLatencyPct)}% L
+              </span>
+            </>
+          ) : (
+            <span className="accent-coral">Set at least one priority weight above 0%</span>
+          )}
         </div>
       </div>
-    </div>
+    </section>
   );
 });

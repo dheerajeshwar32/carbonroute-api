@@ -1,0 +1,44 @@
+:root {
+  color-scheme: dark;
+
+  /* Matte Navy & Slate Surface Stepping (zero pure black) */
+  --bg-canvas: #0B101B;
+  --bg-surface: #111827;
+  --bg-well: #0D1422;
+  --bg-elevated: #182234;
+
+  /* Structural Hairlines */
+  --border-hairline: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Typography */
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  /* Intentional High-Contrast CTA */
+  --cta-bg: #F8FAFC;
+  --cta-bg-hover: #E2E8F0;
+  --cta-text: #0B101B;
+
+  /* Strict Semantic Accents (no glow halos) */
+  --semantic-mint: #34D399;
+  --semantic-amber: #FBBF24;
+  --semantic-coral: #F87171;
+  --semantic-sky: #38BDF8;
+
+  /* Radii & Motion */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --ease-instrument: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Font Stacks */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Scrollbar Tokens */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+  --scrollbar-track: transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}

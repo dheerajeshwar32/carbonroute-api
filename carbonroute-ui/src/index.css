@@ -1,68 +1,18 @@
-/* ==========================================================================
-   CarbonRoute — Apple Human Interface Guidelines (macOS Sequoia Design Tokens)
-   ========================================================================== */
-
-:root {
-  color-scheme: dark;
-
-  /* Color Palette */
-  --bg-canvas: #0B0F19;
-  --bg-gradient-top: rgba(14, 165, 233, 0.08);
-  --bg-gradient-bottom: rgba(48, 209, 88, 0.08);
-
-  /* Materials & Glassmorphism */
-  --surface-glass: rgba(22, 27, 38, 0.72);
-  --surface-glass-hover: rgba(30, 37, 51, 0.85);
-  --surface-glass-border: rgba(255, 255, 255, 0.08);
-  --surface-glass-specular: rgba(255, 255, 255, 0.04);
-  --surface-elevated: rgba(15, 20, 31, 0.92);
-
-  /* Typography Colors */
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-tertiary: #64748B;
-  --text-subtle: #475569;
-
-  /* Apple Semantic Accents */
-  --accent-green: #30D158;
-  --accent-green-glow: rgba(48, 209, 88, 0.25);
-  --accent-blue: #38BDF8;
-  --accent-blue-glow: rgba(56, 189, 248, 0.25);
-  --accent-amber: #FBBF24;
-  --accent-amber-glow: rgba(251, 191, 36, 0.25);
-  --accent-red: #F43F5E;
-  --accent-red-glow: rgba(244, 63, 94, 0.25);
-
-  /* Scrollbar Tokens */
-  --scrollbar-thumb: rgba(255, 255, 255, 0.22);
-  --scrollbar-track: transparent;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-
-  /* Typography Stacks */
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Plus Jakarta Sans", "Inter", sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-
-  /* Shadows & Elevation */
-  --shadow-elevation: 0 16px 36px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  --shadow-subtle: 0 4px 16px rgba(0, 0, 0, 0.25);
-
-  /* Spring Physics Motion Curve */
-  --spring-easing: cubic-bezier(0.22, 1, 0.36, 1);
-  --transition-smooth: all 0.28s var(--spring-easing);
-}
-
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
+html,
+body {
   width: 100%;
   min-height: 100vh;
   background-color: var(--bg-canvas);
   color: var(--text-primary);
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -77,13 +27,13 @@ html, body {
   flex-direction: column;
 }
 
-/* Accessible focus ring across all keyboard-interactive elements */
+/* Crisp focus indicator across all keyboard controls */
 :where(button, input, select, textarea, a):focus-visible {
-  outline: 2px solid var(--accent-green);
+  outline: 2px solid rgba(248, 250, 252, 0.45);
   outline-offset: 2px;
 }
 
-/* Screen-reader only utility preserving keyboard/focus access */
+/* Accessible visually hidden utility keeping elements in accessibility tree */
 .visually-hidden:where(:not(:focus-within, :active)) {
   position: absolute !important;
   clip-path: inset(50%) !important;
@@ -96,11 +46,11 @@ html, body {
   white-space: nowrap !important;
 }
 
-/* Legacy fallback for browsers without scrollbar-color */
+/* Legacy scrollbar fallback for browsers without scrollbar-color */
 @supports not (scrollbar-color: auto) {
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -113,83 +63,39 @@ html, body {
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.32);
+    background: rgba(255, 255, 255, 0.24);
   }
 }
 
-/* Number stabilization */
-.tabular-numbers,
-.stat-value,
-.stat-unit,
-.badge-value,
-.metric-counter,
-.slider-value {
+/* Telemetry tabular numerals */
+.mono-tabular {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
 }
 
-/* Ambient Canvas Glow & Grid */
-.ambient-glow {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(circle at 20% 0%, var(--bg-gradient-top) 0%, transparent 60%),
-    radial-gradient(circle at 80% 100%, var(--bg-gradient-bottom) 0%, transparent 60%);
-}
-
-.ambient-grid {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-size: 48px 48px;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.2) 80%);
-  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0.2) 80%);
-}
-
-/* Shimmer Skeleton Animations */
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-.skeleton-box {
-  position: relative;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-}
-
-.skeleton-box::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.06) 50%,
-    transparent 100%
-  );
-  animation: shimmer 1.8s infinite;
-}
-
-/* Keyframes for Spring Fade In */
-@keyframes springFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.99);
+@keyframes skeletonSweep {
+  0% {
+    opacity: 0.35;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0.35;
   }
 }
 
-.spring-enter {
-  animation: springFadeIn 0.35s var(--spring-easing) forwards;
+.skeleton-line {
+  background-color: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  animation: skeletonSweep 1.6s var(--ease-instrument) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

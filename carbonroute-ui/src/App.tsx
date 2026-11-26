@@ -1,15 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, useId } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
-import { Header } from './components/Header';
-import { GlobalRegionsDrawer } from './components/GlobalRegionsDrawer';
-import { SLAControls } from './components/SLAControls';
-import { AlertBanner } from './components/AlertBanner';
-import { SkeletonLoader } from './components/SkeletonLoader';
-import { TelemetryStats } from './components/TelemetryStats';
-import { CandidatesTable } from './components/CandidatesTable';
-import { SessionLedgerBar } from './components/SessionLedgerBar';
-import { CopyRequestIdBadge } from './components/CopyRequestIdBadge';
+import { TopBar } from './components/TopBar';
+import { PromptComposer } from './components/PromptComposer';
+import { ResponseCard } from './components/ResponseCard';
+import { TelemetryRail } from './components/TelemetryRail';
+import { SlaControls } from './components/SlaControls';
 import { useSessionLedger } from './hooks/useSessionLedger';
 import { computeLiveRegionProjection } from './utils/schedulerPreview';
 import type {
@@ -29,13 +25,12 @@ const API_BASE: string = import.meta.env.VITE_API_BASE_URL
     : 'https://carbonroute-ipqv.onrender.com';
 
 export function App() {
-  const promptInputId = useId();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<InferenceSuccessResponse | null>(null);
   const [error, setError] = useState<ClientErrorState | null>(null);
 
-  // Model & SLA priorities (models populated dynamically from GET /api/v1/regions)
+  // Model & SLA priorities (models populated strictly from GET /api/v1/regions)
   const [allowedModels, setAllowedModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [maxLatency, setMaxLatency] = useState(200);
@@ -46,6 +41,7 @@ export function App() {
 
   // Background gateway telemetry
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [hasPolledOnce, setHasPolledOnce] = useState(false);
   const [globalRegions, setGlobalRegions] = useState<RegionSnapshot[]>([]);
   const [isPolling, setIsPolling] = useState(false);
 
@@ -89,9 +85,10 @@ export function App() {
         }
         if (Array.isArray(rData.allowed_models) && rData.allowed_models.length > 0) {
           setAllowedModels(rData.allowed_models);
-          const preferredDefault = rData.default_model && rData.allowed_models.includes(rData.default_model)
-            ? rData.default_model
-            : rData.allowed_models[0];
+          const preferredDefault =
+            rData.default_model && rData.allowed_models.includes(rData.default_model)
+              ? rData.default_model
+              : rData.allowed_models[0];
           setSelectedModel((prev) => {
             if (!hasUserSelectedModelRef.current || !prev) {
               return preferredDefault;
@@ -103,6 +100,7 @@ export function App() {
     } catch {
       setHealth(null);
     } finally {
+      setHasPolledOnce(true);
       setIsPolling(false);
     }
   }, []);
@@ -120,7 +118,6 @@ export function App() {
     setSelectedModel(model);
   }, []);
 
-  // Cancel active in-flight inference request
   const handleCancelRequest = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -129,99 +126,97 @@ export function App() {
     setLoading(false);
   }, []);
 
-  // Memoized inference dispatcher — decoupled from `prompt` input state to avoid re-renders on keystrokes
-  const dispatchInference = useCallback(async (promptText: string) => {
-    const trimmed = promptText.trim();
-    if (!trimmed) return;
+  // Memoized inference dispatcher — decoupled from `prompt` input state
+  const dispatchInference = useCallback(
+    async (promptText: string) => {
+      const trimmed = promptText.trim();
+      if (!trimmed) return;
 
-    lastSubmittedPromptRef.current = trimmed;
+      lastSubmittedPromptRef.current = trimmed;
 
-    // Cancel any previous in-flight request cleanly
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const response = await fetch(`${API_BASE}/api/v1/inference`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          prompt: trimmed,
-          ...(selectedModel ? { model: selectedModel } : {}),
-          sla: {
-            max_latency_ms: maxLatency,
-            carbon_priority_weight: carbonWeight / 100,
-            cost_priority_weight: costWeight / 100,
-            latency_priority_weight: latencyWeight / 100,
-          },
-        }),
-      });
+      try {
+        const response = await fetch(`${API_BASE}/api/v1/inference`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            prompt: trimmed,
+            ...(selectedModel ? { model: selectedModel } : {}),
+            sla: {
+              max_latency_ms: maxLatency,
+              carbon_priority_weight: carbonWeight / 100,
+              cost_priority_weight: costWeight / 100,
+              latency_priority_weight: latencyWeight / 100,
+            },
+          }),
+        });
 
-      const payload = (await response.json().catch(() => null)) as
-        | InferenceSuccessResponse
-        | ApiErrorResponse
-        | null;
+        const payload = (await response.json().catch(() => null)) as
+          | InferenceSuccessResponse
+          | ApiErrorResponse
+          | null;
 
-      if (!response.ok || !payload || !payload.success) {
-        const errPayload = payload as ApiErrorResponse | null;
+        if (!response.ok || !payload || !payload.success) {
+          const errPayload = payload as ApiErrorResponse | null;
+          setError({
+            code: errPayload?.error?.code || errPayload?.code || `HTTP_${response.status}`,
+            message:
+              errPayload?.error?.message ||
+              errPayload?.message ||
+              response.statusText ||
+              'Routing request failed.',
+            details: errPayload?.error?.details || errPayload?.details || null,
+            requestId: errPayload?.meta?.request_id || errPayload?.request_id || null,
+          });
+          setResult(null);
+        } else {
+          setResult(payload);
+          setError(null);
+          recordRoutingEvent(payload, trimmed);
+        }
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
+        }
+        if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'AbortError') {
+          return;
+        }
         setError({
-          code: errPayload?.error?.code || errPayload?.code || `HTTP_${response.status}`,
-          message:
-            errPayload?.error?.message ||
-            errPayload?.message ||
-            response.statusText ||
-            'Routing request failed.',
-          details: errPayload?.error?.details || errPayload?.details || null,
-          requestId: errPayload?.meta?.request_id || errPayload?.request_id || null,
+          code: 'network_offline',
+          message: 'Could not connect to the CarbonRoute gateway. Verify backend status.',
+          details: null,
+          requestId: null,
         });
         setResult(null);
-      } else {
-        setResult(payload);
-        setError(null);
-        recordRoutingEvent(payload, trimmed);
-      }
-    } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        return;
-      }
-      if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'AbortError') {
-        return;
-      }
-      setError({
-        code: 'network_offline',
-        message: 'Could not connect to the CarbonRoute gateway. Verify backend status.',
-        details: null,
-        requestId: null,
-      });
-      setResult(null);
-    } finally {
-      if (abortControllerRef.current === controller) {
-        setLoading(false);
-        abortControllerRef.current = null;
-      }
-    }
-  }, [selectedModel, maxLatency, carbonWeight, costWeight, latencyWeight, recordRoutingEvent]);
-
-  const handleFormSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      if (loading) return;
-      const targetPrompt = prompt.trim() || lastSubmittedPromptRef.current;
-      if (targetPrompt) {
-        void dispatchInference(targetPrompt);
+      } finally {
+        if (abortControllerRef.current === controller) {
+          setLoading(false);
+          abortControllerRef.current = null;
+        }
       }
     },
-    [prompt, loading, dispatchInference]
+    [selectedModel, maxLatency, carbonWeight, costWeight, latencyWeight, recordRoutingEvent]
   );
 
-  // Race-free retry directly invoking memoized dispatcher
+  const handleSelectStarterPrompt = useCallback(
+    (starterPrompt: string) => {
+      if (loading) return;
+      setPrompt(starterPrompt);
+      void dispatchInference(starterPrompt);
+    },
+    [loading, dispatchInference]
+  );
+
   const handleRetry = useCallback(() => {
     if (loading) return;
     const targetPrompt = prompt.trim() || lastSubmittedPromptRef.current;
@@ -231,69 +226,59 @@ export function App() {
     }
   }, [prompt, loading, dispatchInference]);
 
+  const handleDismissError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return (
-    <div className="app-wrapper">
-      {/* Ambient Canvas Lighting */}
-      <div className="ambient-glow" />
-      <div className="ambient-grid" />
+    <div className="app-shell">
+      <TopBar
+        health={health}
+        hasPolledOnce={hasPolledOnce}
+        isPolling={isPolling}
+        ledger={ledger}
+        onExportLedger={exportTelemetryJson}
+        onResetLedger={resetLedger}
+      />
 
-      <main className="main-viewport">
-        {/* Header */}
-        <Header health={health} isPolling={isPolling} />
+      <main className="workbench-container">
+        <div className="workbench-grid">
+          {/* Primary Command & Editorial Response Column */}
+          <div className="workbench-primary">
+            <PromptComposer
+              prompt={prompt}
+              setPrompt={setPrompt}
+              allowedModels={allowedModels}
+              selectedModel={selectedModel}
+              onSelectModel={handleModelChange}
+              loading={loading}
+              onSubmitPrompt={dispatchInference}
+              onCancel={handleCancelRequest}
+            />
 
-        {/* Global Live Regions Drawer */}
-        <GlobalRegionsDrawer
-          regions={globalRegions}
-          projectedOptimalId={projectedOptimalId}
-          maxLatencyMs={maxLatency}
-        />
+            <ResponseCard
+              result={result}
+              loading={loading}
+              error={error}
+              projectedOptimalId={projectedOptimalId}
+              maxLatency={maxLatency}
+              onSelectStarterPrompt={handleSelectStarterPrompt}
+              onRetry={handleRetry}
+              onDismissError={handleDismissError}
+            />
+          </div>
 
-        {/* Session Impact Ledger Summary Bar */}
-        <SessionLedgerBar
-          ledger={ledger}
-          onExport={exportTelemetryJson}
-          onReset={resetLedger}
-        />
+          {/* Right Telemetry & Precision SLA Control Rail */}
+          <aside className="workbench-rail" aria-label="Telemetry and SLA controls">
+            <TelemetryRail
+              regions={globalRegions}
+              maxLatency={maxLatency}
+              carbonWeight={carbonWeight}
+              costWeight={costWeight}
+              latencyWeight={latencyWeight}
+            />
 
-        {/* Workload Submission & SLA Config */}
-        <div className="glass-panel input-card spring-enter">
-          <form onSubmit={handleFormSubmit}>
-            <div className="input-row">
-              <label htmlFor={promptInputId} className="visually-hidden">
-                Inference prompt
-              </label>
-              <input
-                id={promptInputId}
-                name="prompt"
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Enter prompt to compute via green cloud routing..."
-                className="prompt-field"
-                required
-                disabled={loading}
-              />
-              {loading ? (
-                <button
-                  type="button"
-                  onClick={handleCancelRequest}
-                  className="btn-cancel"
-                >
-                  Cancel
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!prompt.trim()}
-                  className="btn-primary"
-                >
-                  <span>Route Prompt</span>
-                  <span aria-hidden="true" style={{ fontSize: '12px' }}>➔</span>
-                </button>
-              )}
-            </div>
-
-            <SLAControls
+            <SlaControls
               maxLatency={maxLatency}
               setMaxLatency={setMaxLatency}
               carbonWeight={carbonWeight}
@@ -304,100 +289,9 @@ export function App() {
               setLatencyWeight={setLatencyWeight}
               activePreset={activePreset}
               setActivePreset={setActivePreset}
-              selectedModel={selectedModel}
-              setSelectedModel={handleModelChange}
-              allowedModels={allowedModels}
-              disabled={loading}
             />
-          </form>
+          </aside>
         </div>
-
-        {/* Alert Banner for SLA or API errors */}
-        <AlertBanner
-          error={error}
-          onRetry={handleRetry}
-          onDismiss={() => setError(null)}
-        />
-
-        {/* Shimmer Skeleton during computation */}
-        {loading && <SkeletonLoader />}
-
-        {/* Empty State */}
-        {!result && !loading && !error && (
-          <div className="empty-hud spring-enter">
-            <div className="empty-cmd-icon" aria-hidden="true">⌘</div>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>System Idle</div>
-            <div style={{ fontSize: '13px', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
-              Awaiting generative AI workload. SLA dispatcher primed across global regions.
-            </div>
-          </div>
-        )}
-
-        {/* Persistent Live Region announcing routed inference completions cleanly */}
-        <section aria-live="polite" aria-label="Inference routing output">
-          {result && !loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Telemetry Hero Cards */}
-              <TelemetryStats result={result} />
-
-              {/* Inference Output Card */}
-              <div className="glass-panel output-card spring-enter">
-                <div className="output-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                    <div className="stat-category" style={{ margin: 0 }}>
-                      Inference Completion ({result.model})
-                    </div>
-                    <CopyRequestIdBadge requestId={result.meta?.request_id || result.request_id} />
-                  </div>
-                  {result.usage && (
-                    <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                      Tokens: <span className="tabular-numbers">{result.usage.prompt_tokens || 0}</span> prompt /{' '}
-                      <span className="tabular-numbers">{result.usage.output_tokens || 0}</span> output
-                    </div>
-                  )}
-                </div>
-                <div className="output-body">{result.data}</div>
-              </div>
-
-              {/* Environmental Impact Metrics */}
-              {result.impact && (
-                <div className="glass-panel impact-card spring-enter">
-                  <div className="stat-category">Environmental Impact Summary</div>
-                  <div className="impact-row">
-                    <div className="impact-metric-block">
-                      <div className="impact-number tabular-numbers">
-                        {result.impact.estimated_emissions_avoided_g} gCO₂e
-                      </div>
-                      <div className="impact-caption">
-                        CO₂e Avoided vs. Baseline ({result.impact.baseline_location || result.impact.baseline_region})
-                      </div>
-                    </div>
-
-                    <div className="impact-metric-block">
-                      <div className="impact-number tabular-numbers">
-                        {result.impact.carbon_saved_pct}%
-                      </div>
-                      <div className="impact-caption">Grid Carbon Reduction</div>
-                    </div>
-
-                    <div className="impact-metric-block">
-                      <div className="impact-number tabular-numbers" style={{ color: 'var(--text-primary)' }}>
-                        {result.impact.estimated_emissions_g} gCO₂e
-                      </div>
-                      <div className="impact-caption">Total Generated Emissions</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Candidate Routing Comparison Matrix */}
-              <CandidatesTable
-                candidates={result.routing?.candidates}
-                maxLatency={maxLatency}
-              />
-            </div>
-          )}
-        </section>
       </main>
     </div>
   );
