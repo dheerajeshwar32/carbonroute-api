@@ -14,8 +14,15 @@ const strokeProps = {
   'aria-hidden': true as const,
 };
 
+const SQUIRCLE_PATH =
+  'M 9.5 1 L 18.5 1 C 23.8 1, 27 4.2, 27 9.5 L 27 18.5 C 27 23.8, 23.8 27, 18.5 27 L 9.5 27 C 4.2 27, 1 23.8, 1 18.5 L 1 9.5 C 1 4.2, 4.2 1, 9.5 1 Z';
+
 export function LogoMark({ size = 28, className }: IconProps) {
-  const gradId = `cr-squircle-${useId().replace(/:/g, '')}`;
+  const uid = useId().replace(/:/g, '');
+  const bgGradId = `cr-squircle-bg-${uid}`;
+  const rimGradId = `cr-squircle-rim-${uid}`;
+  const hoverRimGradId = `cr-squircle-hover-rim-${uid}`;
+  const optimalPathGradId = `cr-optimal-path-${uid}`;
 
   return (
     <svg
@@ -28,43 +35,84 @@ export function LogoMark({ size = 28, className }: IconProps) {
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="28" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#1C2638" />
-          <stop offset="100%" stopColor="#111827" />
+        <linearGradient id={bgGradId} x1="0" y1="1" x2="0" y2="27" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1F2A3E" />
+          <stop offset="55%" stopColor="#131B2B" />
+          <stop offset="100%" stopColor="#0D1320" />
+        </linearGradient>
+        <linearGradient id={rimGradId} x1="0" y1="1" x2="0" y2="27" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="rgba(255, 255, 255, 0.26)" />
+          <stop offset="45%" stopColor="rgba(255, 255, 255, 0.08)" />
+          <stop offset="100%" stopColor="rgba(255, 255, 255, 0.03)" />
+        </linearGradient>
+        <linearGradient id={hoverRimGradId} x1="0" y1="1" x2="0" y2="27" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="rgba(255, 255, 255, 0.42)" />
+          <stop offset="45%" stopColor="rgba(255, 255, 255, 0.14)" />
+          <stop offset="100%" stopColor="rgba(255, 255, 255, 0.04)" />
+        </linearGradient>
+        <linearGradient
+          id={optimalPathGradId}
+          x1="7.2"
+          y1="0"
+          x2="20.2"
+          y2="0"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0%" stopColor="#F8FAFC" />
+          <stop offset="65%" stopColor="#D1FAE5" />
+          <stop offset="100%" stopColor="#30D158" />
         </linearGradient>
       </defs>
-      <rect
-        x="0.5"
-        y="0.5"
-        width="27"
-        height="27"
-        rx="7.5"
-        fill={`url(#${gradId})`}
-        stroke="rgba(255, 255, 255, 0.12)"
+
+      {/* Studio-Lit Hardware Superellipse Container & Specular Rim */}
+      <path
+        d={SQUIRCLE_PATH}
+        fill={`url(#${bgGradId})`}
+        stroke={`url(#${rimGradId})`}
         strokeWidth="1"
       />
       <path
-        d="M 7.5 14 C 13 14 14.5 19.5 18.25 19.5"
-        stroke="rgba(235, 235, 245, 0.24)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M 7.5 14 C 13 14 14.5 8.5 20 8.5"
-        stroke="#F8FAFC"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="7.5" cy="14" r="2" fill="#F8FAFC" />
-      <circle
-        cx="20"
-        cy="19.5"
-        r="1.75"
+        className="cr-logo-hover-rim"
+        d={SQUIRCLE_PATH}
         fill="none"
-        stroke="rgba(235, 235, 245, 0.24)"
-        strokeWidth="1.5"
+        stroke={`url(#${hoverRimGradId})`}
+        strokeWidth="1"
       />
-      <circle cx="20" cy="8.5" r="2.4" fill="#30D158" />
+
+      {/* Layer 1: Bypassed Higher-Carbon Path */}
+      <path
+        d="M 7.2 14 C 12.2 14, 13.8 19.4, 20.2 19.4"
+        fill="none"
+        stroke="rgba(226, 232, 240, 0.22)"
+        strokeWidth="1.85"
+        strokeLinecap="round"
+      />
+
+      {/* Layer 2: Bypassed Terminal Ring (zero bleed interior mask) */}
+      <circle
+        cx="20.2"
+        cy="19.4"
+        r="2.1"
+        fill="#121A2A"
+        stroke="rgba(226, 232, 240, 0.36)"
+        strokeWidth="1.55"
+      />
+
+      {/* Layer 3: Optimal Clean Path */}
+      <path
+        d="M 7.2 14 C 12.2 14, 13.8 8.6, 20.2 8.6"
+        fill="none"
+        stroke={`url(#${optimalPathGradId})`}
+        strokeWidth="2.1"
+        strokeLinecap="round"
+      />
+
+      {/* Layer 4: Origin Node */}
+      <circle cx="7.2" cy="14" r="2.15" fill="#F8FAFC" />
+
+      {/* Layer 5: Optimal Green Destination Node + Optical Glass Highlight */}
+      <circle cx="20.2" cy="8.6" r="2.55" fill="#30D158" />
+      <circle cx="19.6" cy="7.9" r="0.65" fill="rgba(255, 255, 255, 0.45)" />
     </svg>
   );
 }

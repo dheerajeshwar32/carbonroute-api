@@ -73,22 +73,48 @@
   color: var(--text-primary);
 }
 
+.cr-logo-hover-rim {
+  opacity: 0;
+  transition: opacity 200ms var(--ease-instrument);
+}
+
+.topbar-brand:hover .cr-logo-hover-rim {
+  opacity: 1;
+}
+
 .brand-wordmark {
+  font-family: var(--font-brand);
+  font-feature-settings: "kern" 1, "liga" 1, "ss01" 1;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 16.5px;
+  line-height: 1;
   display: inline-flex;
   align-items: baseline;
-  font-size: 16px;
-  line-height: 1;
+  user-select: none;
+  transform: translateY(-0.5px);
+}
+
+.brand-wordmark-carbon {
+  font-weight: 700;
+  color: #F8FAFC;
   letter-spacing: -0.03em;
 }
 
-.brand-wordmark-primary {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.94);
+.kern-c {
+  letter-spacing: -0.04em;
 }
 
-.brand-wordmark-secondary {
+.brand-wordmark-route {
   font-weight: 500;
-  color: rgba(235, 235, 245, 0.68);
+  color: rgba(226, 232, 240, 0.78);
+  margin-left: 0.045em;
+  letter-spacing: -0.025em;
+}
+
+.kern-r {
+  letter-spacing: -0.035em;
 }
 
 .topbar-actions {

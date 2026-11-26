@@ -49,9 +49,13 @@ export function TopBar({
       <div className="topbar-inner">
         <div className="topbar-brand">
           <LogoMark size={28} />
-          <h1 className="brand-wordmark">
-            <span className="brand-wordmark-primary">Carbon</span>
-            <span className="brand-wordmark-secondary">Route</span>
+          <h1 className="brand-wordmark" aria-label="CarbonRoute">
+            <span className="brand-wordmark-carbon">
+              <span className="kern-c">C</span>arbon
+            </span>
+            <span className="brand-wordmark-route">
+              <span className="kern-r">R</span>oute
+            </span>
           </h1>
         </div>
 
