@@ -1,40 +1,46 @@
 :root {
   color-scheme: dark;
 
-  /* Matte Navy & Slate Surface Stepping (zero pure black) */
-  --bg-canvas: #0B101B;
-  --bg-surface: #111827;
-  --bg-well: #0D1422;
-  --bg-elevated: #182234;
+  /* Apple Midnight Slate Canvas & Top-Lit Matte Glass Stepping */
+  --bg-canvas: #0A0F1A;
+  --bg-surface: #0F1624;
+  --surface-panel: linear-gradient(180deg, rgba(22, 30, 46, 0.86) 0%, rgba(15, 22, 36, 0.92) 100%);
+  --surface-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+  --bg-well: rgba(10, 15, 26, 0.54);
+  --bg-elevated: rgba(255, 255, 255, 0.08);
 
-  /* Structural Hairlines */
-  --border-hairline: rgba(255, 255, 255, 0.07);
+  /* Concentric Structural Hairlines */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-hairline: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
 
-  /* Typography */
-  --text-primary: #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
+  /* Apple Dark Mode Optical Text Opacity Scale */
+  --text-primary: rgba(255, 255, 255, 0.93);
+  --text-secondary: rgba(235, 235, 245, 0.62);
+  --text-muted: rgba(235, 235, 245, 0.36);
 
-  /* Intentional High-Contrast CTA */
+  /* Warm Ivory High-Contrast CTA */
   --cta-bg: #F8FAFC;
   --cta-bg-hover: #E2E8F0;
-  --cta-text: #0B101B;
+  --cta-text: #0A0F1A;
 
-  /* Strict Semantic Accents (no glow halos) */
-  --semantic-mint: #34D399;
-  --semantic-amber: #FBBF24;
-  --semantic-coral: #F87171;
-  --semantic-sky: #38BDF8;
+  /* Apple HIG Dark Semantic Data Accents (zero neon glow) */
+  --semantic-mint: #30D158;
+  --semantic-amber: #FF9F0A;
+  --semantic-coral: #FF453A;
+  --semantic-sky: #0A84FF;
 
-  /* Radii & Motion */
+  /* Concentric Radii & Spring Curves */
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 12px;
+  --radius-lg: 14px;
+  --radius-outer: 20px;
+  --radius-pill: 9999px;
   --ease-instrument: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
 
-  /* Font Stacks */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  /* Apple System Typography Stacks */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 
   /* Scrollbar Tokens */

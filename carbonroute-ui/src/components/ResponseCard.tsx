@@ -324,41 +324,44 @@ export function ResponseCard({
               <MarkdownRenderer content={result.data} />
             </div>
 
-            {/* Bottom Telemetry Strip */}
+            {/* Bottom Apple Activity Telemetry Bento Strip & Capsule Actions */}
             <div className="response-footer">
               <div className="telemetry-strip">
                 <div className="telemetry-stat">
                   <span className="telemetry-stat-label">Latency</span>
                   <span className="telemetry-stat-val mono-tabular">
-                    {result.telemetry.latency_ms} ms
+                    {result.telemetry.latency_ms.toLocaleString()} ms
                   </span>
                 </div>
 
-                {result.impact && (
-                  <>
-                    <div className="telemetry-stat">
-                      <span className="telemetry-stat-label">Actual Emissions</span>
-                      <span className="telemetry-stat-val mono-tabular">
-                        {result.impact.estimated_emissions_g} gCO₂e
-                      </span>
-                    </div>
-                    <div className="telemetry-stat">
-                      <span className="telemetry-stat-label">Avoided</span>
-                      <span className="telemetry-stat-val mono-tabular accent-mint">
-                        {result.impact.estimated_emissions_avoided_g} gCO₂e
-                      </span>
-                    </div>
-                  </>
-                )}
+                <div className="telemetry-stat">
+                  <span className="telemetry-stat-label">Emissions</span>
+                  <span className="telemetry-stat-val mono-tabular">
+                    {result.impact ? `${result.impact.estimated_emissions_g} gCO₂e` : '—'}
+                  </span>
+                </div>
 
-                {result.usage && (
-                  <div className="telemetry-stat">
-                    <span className="telemetry-stat-label">Tokens</span>
-                    <span className="telemetry-stat-val mono-tabular">
-                      {result.usage.prompt_tokens ?? 0} in / {result.usage.output_tokens ?? 0} out
-                    </span>
-                  </div>
-                )}
+                <div className="telemetry-stat">
+                  <span className="telemetry-stat-label">Avoided</span>
+                  <span
+                    className={`telemetry-stat-val mono-tabular${
+                      result.impact ? ' accent-mint' : ''
+                    }`}
+                  >
+                    {result.impact ? `${result.impact.estimated_emissions_avoided_g} gCO₂e` : '—'}
+                  </span>
+                </div>
+
+                <div className="telemetry-stat">
+                  <span className="telemetry-stat-label">Tokens</span>
+                  <span className="telemetry-stat-val mono-tabular">
+                    {result.usage
+                      ? `${(result.usage.prompt_tokens ?? 0).toLocaleString()} in / ${(
+                          result.usage.output_tokens ?? 0
+                        ).toLocaleString()} out`
+                      : '—'}
+                  </span>
+                </div>
               </div>
 
               <div className="footer-actions">

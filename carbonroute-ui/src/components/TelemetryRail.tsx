@@ -79,12 +79,14 @@ export function TelemetryRail({
   }, [regions, maxLatency]);
 
   const cutoffPct = Math.min(100, Math.max(0, (maxLatency / maxScaleMs) * 100));
+  const hideLeftBound = cutoffPct < 20;
+  const hideRightBound = cutoffPct > 76;
   const cutoffLabelTransform =
-    cutoffPct < 14
-      ? 'translateX(0%)'
-      : cutoffPct > 86
-        ? 'translateX(-100%)'
-        : 'translateX(-50%)';
+    cutoffPct < 10
+      ? 'translate(0%, -50%)'
+      : cutoffPct > 90
+        ? 'translate(-100%, -50%)'
+        : 'translate(-50%, -50%)';
 
   return (
     <section className="surface-card telemetry-rail-card" aria-label="Global region telemetry and latency SLA">
@@ -107,14 +109,24 @@ export function TelemetryRail({
           {/* Synchronized Latency Axis & Live SLA Cutoff Scale */}
           <div className="sla-scale-bar">
             <div className="sla-scale-track-area">
-              <span className="sla-scale-bound mono-tabular">0ms</span>
+              <span
+                className={`sla-scale-bound mono-tabular${hideLeftBound ? ' sla-scale-bound-hidden' : ''}`}
+                aria-hidden={hideLeftBound || undefined}
+              >
+                0ms
+              </span>
               <span
                 className="sla-cutoff-readout mono-tabular"
                 style={{ left: `${cutoffPct}%`, transform: cutoffLabelTransform }}
               >
                 {maxLatency}ms SLA
               </span>
-              <span className="sla-scale-bound mono-tabular">{maxScaleMs}ms</span>
+              <span
+                className={`sla-scale-bound mono-tabular${hideRightBound ? ' sla-scale-bound-hidden' : ''}`}
+                aria-hidden={hideRightBound || undefined}
+              >
+                {maxScaleMs}ms
+              </span>
             </div>
             <span className="sla-scale-spacer" aria-hidden="true" />
           </div>

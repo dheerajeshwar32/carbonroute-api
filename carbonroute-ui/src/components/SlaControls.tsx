@@ -1,6 +1,17 @@
-import { memo, useId } from 'react';
+import { memo, useId, type CSSProperties } from 'react';
 import type { SLAPreset } from '../types/contract';
 import { Sliders } from './Icons';
+
+const PRESET_OPTIONS = [
+  { key: 'eco', label: 'Eco Max' },
+  { key: 'balanced', label: 'Balanced' },
+  { key: 'latency', label: 'Low Latency' },
+  { key: 'custom', label: 'Custom' },
+] as const;
+
+type SegmentedControlStyle = CSSProperties & {
+  '--active-idx': number;
+};
 
 const calcPct = (val: number, min: number, max: number): number =>
   Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
@@ -134,16 +145,22 @@ export const SlaControls = memo(function SlaControls({
         </div>
       </div>
 
-      {/* Segmented Presets */}
-      <div className="preset-segmented" role="tablist" aria-label="Routing policy presets">
-        {(
-          [
-            { key: 'eco', label: 'Eco Max' },
-            { key: 'balanced', label: 'Balanced' },
-            { key: 'latency', label: 'Low Latency' },
-            { key: 'custom', label: 'Custom' },
-          ] as const
-        ).map(({ key, label }) => (
+      {/* Segmented Presets with Spring Sliding Pill */}
+      <div
+        className="preset-segmented"
+        role="tablist"
+        aria-label="Routing policy presets"
+        style={
+          {
+            '--active-idx': Math.max(
+              0,
+              PRESET_OPTIONS.findIndex((opt) => opt.key === activePreset),
+            ),
+          } as SegmentedControlStyle
+        }
+      >
+        <span className="preset-sliding-pill" aria-hidden="true" />
+        {PRESET_OPTIONS.map(({ key, label }) => (
           <button
             key={key}
             type="button"

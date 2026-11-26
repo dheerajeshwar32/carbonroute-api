@@ -6,6 +6,10 @@
   padding: 0;
 }
 
+html {
+  scroll-padding-top: 56px;
+}
+
 html,
 body {
   width: 100%;
@@ -20,7 +24,22 @@ body {
   overflow-x: hidden;
 }
 
+body {
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 45% at 50% -10%, rgba(148, 163, 184, 0.08), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 #root {
+  position: relative;
+  z-index: 1;
   width: 100%;
   min-height: 100vh;
   display: flex;
@@ -88,14 +107,11 @@ body {
 .skeleton-line {
   background-color: var(--bg-elevated);
   border-radius: var(--radius-sm);
-  animation: skeletonSweep 1.6s var(--ease-instrument) infinite;
+  opacity: 0.55;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-line {
+    animation: skeletonSweep 1.6s var(--ease-instrument) infinite;
   }
 }
